@@ -19,7 +19,10 @@ runtime:
   scripts:
     - type: after-response
       code: |-
-        bru.setVar("adminToken", res.body.token);
+        if (res.status === 200 && res.body.token) {
+          bru.setVar("adminToken", res.body.token);
+          bru.setVar("token", res.body.token);
+        }
   assertions:
     - expression: res.status
       operator: eq

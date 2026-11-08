@@ -1,8 +1,11 @@
 const express = require('express');
-const { getMassages } = require('../controllers/shops');
+const { getShops,createShop } = require('../controllers/shops');
+
+const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', getMassages);
+router.get('/', getShops);
+router.post('/', protect, authorize('admin'), createShop);
 
 module.exports = router;

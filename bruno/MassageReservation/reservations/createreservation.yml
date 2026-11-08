@@ -1,0 +1,45 @@
+info:
+  name: CreateReservation
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{URL}}/api/v1/reservations"
+  body:
+    type: multipart-form
+    data:
+      - name: shopId
+        type: text
+        value: "{{reservationShopId}}"
+      - name: reservationDate
+        type: text
+        value: "{{reservationDate}}"
+      - name: startTime
+        type: text
+        value: "{{reservationStartTime}}"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201 && res.body.data && res.body.data._id) {
+          bru.setVar("reservationId", res.body.data._id);
+        }
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.success
+      operator: eq
+      value: "true"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

@@ -33,6 +33,12 @@ const UserSchema = new mongoose.Schema({
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
+    // Internal transaction lock for the active reservation limit.
+    reservationVersion: {
+        type: Number,
+        default: 0,
+        select: false
+    },
     createdAt: {
         type: Date,
         default: Date.now

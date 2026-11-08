@@ -1,0 +1,43 @@
+info:
+  name: UpdateReservation
+  type: http
+  seq: 3
+
+http:
+  method: PUT
+  url: "{{URL}}/api/v1/reservations/:id"
+  params:
+    - name: id
+      value: "{{reservationId}}"
+      type: path
+  body:
+    type: multipart-form
+    data:
+      - name: shopId
+        type: text
+        value: "{{reservationShopId}}"
+      - name: reservationDate
+        type: text
+        value: "{{reservationDate}}"
+      - name: startTime
+        type: text
+        value: "{{updatedReservationStartTime}}"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body.success
+      operator: eq
+      value: "true"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

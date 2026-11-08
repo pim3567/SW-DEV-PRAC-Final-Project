@@ -1,0 +1,31 @@
+info:
+  name: DeleteReservation
+  type: http
+  seq: 4
+
+http:
+  method: DELETE
+  url: "{{URL}}/api/v1/reservations/:id"
+  params:
+    - name: id
+      value: "{{reservationId}}"
+      type: path
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body.success
+      operator: eq
+      value: "true"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

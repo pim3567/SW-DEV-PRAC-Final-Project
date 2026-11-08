@@ -200,6 +200,52 @@ describe('View, edit, and delete reservations', () => {
         expect(() => require('../app')).not.toThrow();
     });
 
+    test.each([
+        ['owner', userId, 'user', 200],
+        ['another user', otherShopId, 'user', 403],
+        ['admin', otherShopId, 'admin', 200]
+    ])('get one reservation as %s enforces access', async (label, requesterId, role, status) => {
+        jest.spyOn(User, 'findById').mockResolvedValue({ id: requesterId, role });
+        const token = jwt.sign({ id: requesterId }, process.env.JWT_SECRET);
+        const details = {
+            ...reservation,
+            shopId: { _id: shopId, name: 'Test Shop', openingTime: '09:00', closingTime: '21:00' },
+            userId: { _id: userId, name: 'Test User', email: 'test@example.com' }
+        };
+        Reservation.findById.mockResolvedValue({
+            ...reservation,
+            populate: jest.fn().mockResolvedValue(details)
+        });
+        const res = await request(require('../app')).get(`/api/v1/reservations/${reservationId}`)
+            .set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(status);
+        if (status === 200) {
+            expect(res.body.data._id).toBe(reservationId);
+            expect(res.body.data.shopId.name).toBe('Test Shop');
+            expect(res.body.data.userId._id).toBe(userId);
+        } else {
+            expect(res.body.data).toBeUndefined();
+        }
+    });
+
+    test.each([
+        ['bad-id', 400],
+        ['000000', 400],
+        [reservationId, 404]
+    ])('get one rejects invalid or missing reservation %s with %i', async (id, status) => {
+        jest.spyOn(User, 'findById').mockResolvedValue({ id: userId, role: 'user' });
+        Reservation.findById.mockResolvedValue(null);
+        const token = jwt.sign({ id: userId }, process.env.JWT_SECRET);
+        const res = await request(require('../app')).get(`/api/v1/reservations/${id}`)
+            .set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(status);
+    });
+
+    test('get one requires login', async () => {
+        const res = await request(require('../app')).get(`/api/v1/reservations/${reservationId}`);
+        expect(res.status).toBe(401);
+    });
+
     test('owners can change time without changing the Thailand booking day', async () => {
         const res = await edit({ startTime: '15:00' });
         expect(res.statusCode).toBe(200);

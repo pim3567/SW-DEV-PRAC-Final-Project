@@ -30,6 +30,58 @@ exports.getMyReservations = async (req, res) => {
   }
 };
 
+// @desc    View one reservation
+// @route   GET /api/v1/reservations/:id
+// @access  Reservation owner or admin
+exports.getReservation = async (req, res) => {
+  try {
+    if (!mongoose.isObjectIdOrHexString(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid reservation ID",
+      });
+    }
+
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) {
+      return res.status(404).json({
+        success: false,
+        error: "Reservation not found",
+      });
+    }
+    if (
+      reservation.userId.toString() !== req.user.id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: "Not authorized to view this reservation",
+      });
+    }
+
+    const details = await reservation.populate([
+      { path: "shopId", select: "name address tel openingTime closingTime" },
+      { path: "userId", select: "name email" },
+    ]);
+    return res.status(200).json({
+      success: true,
+      data: details,
+    });
+  } catch (err) {
+    if (err.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid reservation ID",
+      });
+    }
+    console.error(err);
+    return res.status(500).json({
+      success: false,
+      error: "Unable to retrieve reservation",
+    });
+  }
+};
+
 // @desc Create a new reservation
 // @route POST /api/v1/reservations
 // @access Logged-in users

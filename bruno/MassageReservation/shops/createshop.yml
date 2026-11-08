@@ -1,5 +1,5 @@
 info:
-  name: Create Shop (Admin)
+  name: CreateShop
   type: http
   seq: 1
 

@@ -1,9 +1,12 @@
+jest.mock('../utils/sendEmail', () => ({ sendEmail: jest.fn() }));
+
 const mongoose = require('mongoose');
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Reservation = require('../models/Reservation');
 const MassageShop = require('../models/MassageShop');
+const { sendEmail } = require('../utils/sendEmail');
 const { getMyReservations, createReservation, updateReservation, deleteReservation } = require('../controllers/reservation');
 
 process.env.JWT_SECRET = 'reservation-test-secret';
@@ -13,12 +16,16 @@ describe('Create reservations', () => {
     const shopId = '507f1f77bcf86cd799439013';
     let rows;
     let lockTail;
+    let originalAdminEmail;
 
     beforeEach(() => {
+        originalAdminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+        process.env.ADMIN_NOTIFICATION_EMAIL = 'admin@example.com';
+        sendEmail.mockReset().mockResolvedValue({ messageId: 'test-message' });
         rows = [];
         lockTail = Promise.resolve();
         jest.spyOn(MassageShop, 'findById').mockResolvedValue({
-            _id: shopId, openingTime: '09:00', closingTime: '21:00'
+            _id: shopId, name: 'Test Massage Shop', openingTime: '09:00', closingTime: '21:00'
         });
 
         // In-memory transaction boundary: stage writes until commit and release locks on abort.
@@ -68,15 +75,19 @@ describe('Create reservations', () => {
         });
     });
 
-    afterEach(() => jest.restoreAllMocks());
+    afterEach(() => {
+        if (originalAdminEmail === undefined) delete process.env.ADMIN_NOTIFICATION_EMAIL;
+        else process.env.ADMIN_NOTIFICATION_EMAIL = originalAdminEmail;
+        jest.restoreAllMocks();
+    });
 
-    async function book(overrides = {}) {
+    async function book(overrides = {}, role = 'user') {
         const res = {
             status(code) { this.statusCode = code; return this; },
             json(body) { this.body = body; return this; }
         };
         await createReservation({
-            user: { id: userId },
+            user: { id: userId, role, name: 'Test Customer', email: 'customer@example.com' },
             body: { shopId, reservationDate: '2099-12-01', startTime: '14:00', ...overrides }
         }, res);
         return res;
@@ -117,6 +128,61 @@ describe('Create reservations', () => {
         expect((await book()).statusCode).toBe(400);
         expect(rows).toHaveLength(0);
         expect((await book()).statusCode).toBe(201);
+    });
+
+    test('notifies the configured admin only after the customer booking commits', async () => {
+        sendEmail.mockImplementation(async message => {
+            expect(rows).toHaveLength(1);
+            expect(message.to).toBe('admin@example.com');
+        });
+        const res = await book({ adminEmail: 'untrusted@example.com' });
+        expect(res.statusCode).toBe(201);
+        expect(sendEmail).toHaveBeenCalledTimes(1);
+        const message = sendEmail.mock.calls[0][0];
+        expect(message.text).toContain(String(res.body.data._id));
+        expect(message.text).toContain('Test Customer');
+        expect(message.text).toContain('customer@example.com');
+        expect(message.text).toContain('Test Massage Shop');
+        expect(message.text).toContain('14:00');
+        expect(message.text).toContain('Thailand time');
+    });
+
+    test('does not notify admin for rejected or aborted bookings', async () => {
+        rows.push(...Array.from({ length: 3 }, () => ({ userId, status: 'pending' })));
+        expect((await book()).statusCode).toBe(400);
+        expect(sendEmail).not.toHaveBeenCalled();
+        rows.length = 0;
+        Reservation.create.mockRejectedValueOnce(Object.assign(new Error('Invalid data'), { name: 'ValidationError' }));
+        expect((await book()).statusCode).toBe(400);
+        expect(sendEmail).not.toHaveBeenCalled();
+    });
+
+    test('does not notify for bookings created by an admin', async () => {
+        expect((await book({}, 'admin')).statusCode).toBe(201);
+        expect(sendEmail).not.toHaveBeenCalled();
+    });
+
+    test('email delivery failure leaves the booking successful', async () => {
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+        sendEmail.mockRejectedValue(Object.assign(new Error('SMTP failed'), { code: 'ECONNECTION' }));
+        const res = await book();
+        expect(res.statusCode).toBe(201);
+        expect(rows).toHaveLength(1);
+        expect(console.error).toHaveBeenCalledWith('Admin notification email failed:', 'ECONNECTION');
+    });
+
+    test('does not wait for SMTP delivery before responding to the booking', async () => {
+        sendEmail.mockImplementation(() => new Promise(() => {}));
+        expect((await book()).statusCode).toBe(201);
+        expect(sendEmail).toHaveBeenCalledTimes(1);
+    });
+
+    test('missing admin email configuration does not roll back the booking', async () => {
+        delete process.env.ADMIN_NOTIFICATION_EMAIL;
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+        expect((await book()).statusCode).toBe(201);
+        expect(sendEmail).not.toHaveBeenCalled();
+        expect(console.error).toHaveBeenCalledWith('Admin notification email skipped: ADMIN_NOTIFICATION_EMAIL is not configured');
     });
 
     test.each(['multipart', 'json'])('creates reservations from %s fields', async format => {

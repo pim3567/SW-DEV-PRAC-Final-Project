@@ -4,6 +4,36 @@ const MassageShop = require("../models/MassageShop");
 const User = require("../models/User");
 const { sendEmail } = require("../utils/sendEmail");
 
+const notifyReservationAdmins = async (reservation, customer, shop) => {
+  const admins = await User.find({ role: "admin" }).select("email");
+  const adminEmails = [...new Set(admins
+    .map(admin => typeof admin.email === "string" ? admin.email.trim() : "")
+    .filter(Boolean))];
+  if (adminEmails.length === 0) {
+    console.error("Admin notification email skipped: no admin email addresses found");
+    return;
+  }
+
+  const bookingTime = reservation.reservationDate.toLocaleString(
+    "en-GB",
+    { timeZone: "Asia/Bangkok" },
+  );
+  await sendEmail({
+    to: adminEmails,
+    subject: "New Massage Reservation",
+    text: [
+      "A customer has successfully made a reservation.",
+      "",
+      `Reservation ID: ${reservation._id}`,
+      `Customer: ${customer.name}`,
+      `Customer email: ${customer.email}`,
+      `Massage shop: ${shop.name}`,
+      `Booking time: ${bookingTime} (Thailand time)`,
+      `Status: ${reservation.status}`,
+    ].join("\n"),
+  });
+};
+
 // @desc View my reservations, or all reservations as admin
 // @route GET /api/v1/reservations
 // @access Logged-in users
@@ -183,33 +213,10 @@ exports.createReservation = async (req, res) => {
     });
     // Send only after commit, so transaction retries cannot duplicate the email.
     if (req.user.role === "user") {
-      const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL?.trim();
-      if (!adminEmail) {
-        console.error("Admin notification email skipped: ADMIN_NOTIFICATION_EMAIL is not configured");
-      } else {
-        const bookingTime = reservation.reservationDate.toLocaleString(
-          "en-GB",
-          { timeZone: "Asia/Bangkok" },
-        );
-
-        // Email delivery runs independently of the successful booking response.
-        sendEmail({
-          to: adminEmail,
-          subject: "New Massage Reservation",
-          text: [
-            "A customer has successfully made a reservation.",
-            "",
-            `Reservation ID: ${reservation._id}`,
-            `Customer: ${req.user.name}`,
-            `Customer email: ${req.user.email}`,
-            `Massage shop: ${shop.name}`,
-            `Booking time: ${bookingTime} (Thailand time)`,
-            `Status: ${reservation.status}`,
-          ].join("\n"),
-        }).catch((err) => {
-          console.error("Admin notification email failed:", err.code || "UNKNOWN");
-        });
-      }
+      // Recipient lookup and delivery run independently of the booking response.
+      notifyReservationAdmins(reservation, req.user, shop).catch((err) => {
+        console.error("Admin notification email failed:", err.code || "UNKNOWN");
+      });
     }
 
     return res.status(201).json({

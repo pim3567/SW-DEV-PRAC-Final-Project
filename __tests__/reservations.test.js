@@ -17,10 +17,21 @@ describe('Create reservations', () => {
     let rows;
     let lockTail;
     let originalAdminEmail;
+    let adminAccounts;
 
     beforeEach(() => {
         originalAdminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
-        process.env.ADMIN_NOTIFICATION_EMAIL = 'admin@example.com';
+        process.env.ADMIN_NOTIFICATION_EMAIL = 'unused@example.com';
+        adminAccounts = [
+            { role: 'admin', email: 'admin1@example.com' },
+            { role: 'admin', email: 'admin2@example.com' },
+            { role: 'user', email: 'customer@example.com' }
+        ];
+        jest.spyOn(User, 'find').mockImplementation(filter => ({
+            select: jest.fn().mockResolvedValue(adminAccounts.filter(account =>
+                !filter.role || account.role === filter.role
+            ).map(account => ({ email: account.email })))
+        }));
         sendEmail.mockReset().mockResolvedValue({ messageId: 'test-message' });
         rows = [];
         lockTail = Promise.resolve();
@@ -90,6 +101,8 @@ describe('Create reservations', () => {
             user: { id: userId, role, name: 'Test Customer', email: 'customer@example.com' },
             body: { shopId, reservationDate: '2099-12-01', startTime: '14:00', ...overrides }
         }, res);
+        // Flush the background admin lookup and delivery error handler.
+        await new Promise(resolve => setImmediate(resolve));
         return res;
     }
 
@@ -130,15 +143,17 @@ describe('Create reservations', () => {
         expect((await book()).statusCode).toBe(201);
     });
 
-    test('notifies the configured admin only after the customer booking commits', async () => {
-        sendEmail.mockImplementation(async message => {
-            expect(rows).toHaveLength(1);
-            expect(message.to).toBe('admin@example.com');
+    test('notifies all admin accounts only after the customer booking commits', async () => {
+        let committedRowsAtDelivery;
+        sendEmail.mockImplementation(async () => {
+            committedRowsAtDelivery = rows.length;
         });
         const res = await book({ adminEmail: 'untrusted@example.com' });
         expect(res.statusCode).toBe(201);
         expect(sendEmail).toHaveBeenCalledTimes(1);
+        expect(committedRowsAtDelivery).toBe(1);
         const message = sendEmail.mock.calls[0][0];
+        expect(message.to).toEqual(['admin1@example.com', 'admin2@example.com']);
         expect(message.text).toContain(String(res.body.data._id));
         expect(message.text).toContain('Test Customer');
         expect(message.text).toContain('customer@example.com');
@@ -177,12 +192,27 @@ describe('Create reservations', () => {
         expect(sendEmail).toHaveBeenCalledTimes(1);
     });
 
-    test('missing admin email configuration does not roll back the booking', async () => {
+    test('uses admin accounts without requiring ADMIN_NOTIFICATION_EMAIL', async () => {
         delete process.env.ADMIN_NOTIFICATION_EMAIL;
+        expect((await book()).statusCode).toBe(201);
+        expect(sendEmail.mock.calls[0][0].to).toEqual(['admin1@example.com', 'admin2@example.com']);
+    });
+
+    test('no admin accounts does not roll back the booking', async () => {
+        adminAccounts = [];
         jest.spyOn(console, 'error').mockImplementation(() => {});
         expect((await book()).statusCode).toBe(201);
         expect(sendEmail).not.toHaveBeenCalled();
-        expect(console.error).toHaveBeenCalledWith('Admin notification email skipped: ADMIN_NOTIFICATION_EMAIL is not configured');
+        expect(console.error).toHaveBeenCalledWith('Admin notification email skipped: no admin email addresses found');
+    });
+
+    test('admin lookup failures do not roll back the booking', async () => {
+        User.find.mockImplementation(() => ({ select: jest.fn().mockRejectedValue(new Error('Database unavailable')) }));
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+        expect((await book()).statusCode).toBe(201);
+        expect(rows).toHaveLength(1);
+        expect(sendEmail).not.toHaveBeenCalled();
+        expect(console.error).toHaveBeenCalledWith('Admin notification email failed:', 'UNKNOWN');
     });
 
     test.each(['multipart', 'json'])('creates reservations from %s fields', async format => {

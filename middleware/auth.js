@@ -26,6 +26,10 @@ exports.protect = async (req, res, next) => {
             return res.status(401).json({ success: false, message: 'Not authorized to access this route' });
         }
 
+        if ((decoded.tokenVersion || 0) !== (req.user.tokenVersion || 0)) {
+            return res.status(401).json({ success: false, message: 'Password changed. Please log in again.' });
+        }
+
         next();
     } catch (err) {
         console.log(err.stack);

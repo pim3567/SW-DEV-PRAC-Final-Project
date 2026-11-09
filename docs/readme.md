@@ -4,18 +4,9 @@ Express + MongoDB (Mongoose) backend with JWT authentication.
 
 ## Setup
 
-1. Install dependencies: `npm install`
-2. Create `config/config.env`:
-
-   ```
-   PORT=5000
-   NODE_ENV=development
-   MONGO_URI=<your mongodb connection string>
-   JWT_SECRET=<secret>
-   JWT_EXPIRE=30d
-   JWT_COOKIE_EXPIRE=30
-   ```
-3. Run: `npm run dev` (nodemon) or `node server.js`
+Follow the [environment setup guide](../README.md#environment-setup) for MongoDB Atlas, JWT secrets, Gmail SMTP, and connection checks.
+Copy `config/config.env.example` to `config/config.env` only if you do not already have local settings, then replace all placeholders.
+Run `npm run dev` (nodemon) or `node server.js` from the project root.
 
 ## Project structure
 

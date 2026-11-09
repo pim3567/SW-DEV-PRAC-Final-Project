@@ -24,13 +24,15 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.3",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.4",
-    "multer": "^2.5.0"
+    "multer": "^2.5.0",
+    "nodemailer": "^10.4.0"
   },
   "devDependencies": {
     "jest": "^30.5.2",
-    "nodemon": "^3.1.14",
+    "nodemon": "^3.1.11",
     "supertest": "^7.3.1"
   }
 }

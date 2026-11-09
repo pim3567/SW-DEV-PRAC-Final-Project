@@ -31,8 +31,36 @@ const UserSchema = new mongoose.Schema({
         minlength: 6,
         select: false
     },
-    resetPasswordToken: String,
-    resetPasswordExpire: Date,
+    resetOtpHash: {
+        type: String,
+        select: false
+    },
+    resetOtpExpire: {
+        type: Date,
+        select: false
+    },
+    resetOtpAttempts: {
+        type: Number,
+        default: 0,
+        select: false
+    },
+    resetOtpSentAt: {
+        type: Date,
+        select: false
+    },
+    resetPasswordToken: {
+        type: String,
+        select: false
+    },
+    resetPasswordExpire: {
+        type: Date,
+        select: false
+    },
+    // Increment after a password reset to invalidate previously issued JWTs.
+    tokenVersion: {
+        type: Number,
+        default: 0
+    },
     // Internal transaction lock for the active reservation limit.
     reservationVersion: {
         type: Number,
@@ -54,7 +82,7 @@ UserSchema.pre('save', async function () {
 
 // Sign JWT and return
 UserSchema.methods.getSignedJwtToken = function () {
-    return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
+    return jwt.sign({ id: this._id, tokenVersion: this.tokenVersion || 0 }, process.env.JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRE
     });
 }

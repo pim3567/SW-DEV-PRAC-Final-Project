@@ -30,7 +30,7 @@ SMTP_USER=yourname@gmail.com
 SMTP_PASSWORD=REPLACE_WITH_GOOGLE_APP_PASSWORD
 EMAIL_FROM=yourname@gmail.com
 
-# Admin notification recipient (planned) and password-reset OTP secret:
+# Customer-booking notification recipient and password-reset OTP secret:
 ADMIN_NOTIFICATION_EMAIL=admin@example.com
 OTP_SECRET=REPLACE_WITH_A_DIFFERENT_RANDOM_SECRET
 ```
@@ -48,7 +48,7 @@ OTP_SECRET=REPLACE_WITH_A_DIFFERENT_RANDOM_SECRET
 | `SMTP_USER` | SMTP username; for Gmail, your full email address. |
 | `SMTP_PASSWORD` | Provider-issued SMTP credential; for Gmail, an App Password. |
 | `EMAIL_FROM` | Sender address authorized by the email provider. |
-| `ADMIN_NOTIFICATION_EMAIL` | Intended admin email recipient; notification delivery is not implemented yet. |
+| `ADMIN_NOTIFICATION_EMAIL` | Recipient notified after a customer successfully creates a reservation. Delivery failures are logged; automatic retries are not implemented. |
 | `OTP_SECRET` | Secret used to protect password-reset OTPs. Reset endpoints accept multipart fields or JSON. |
 
 ### MongoDB Atlas

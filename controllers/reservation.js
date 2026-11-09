@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Reservation = require("../models/Reservation");
 const MassageShop = require("../models/MassageShop");
 const User = require("../models/User");
+const { sendEmail } = require("../utils/sendEmail");
 
 // @desc View my reservations, or all reservations as admin
 // @route GET /api/v1/reservations
@@ -180,6 +181,37 @@ exports.createReservation = async (req, res) => {
       readConcern: { level: "snapshot" },
       writeConcern: { w: "majority" },
     });
+    // Send only after commit, so transaction retries cannot duplicate the email.
+    if (req.user.role === "user") {
+      const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL?.trim();
+      if (!adminEmail) {
+        console.error("Admin notification email skipped: ADMIN_NOTIFICATION_EMAIL is not configured");
+      } else {
+        const bookingTime = reservation.reservationDate.toLocaleString(
+          "en-GB",
+          { timeZone: "Asia/Bangkok" },
+        );
+
+        // Email delivery runs independently of the successful booking response.
+        sendEmail({
+          to: adminEmail,
+          subject: "New Massage Reservation",
+          text: [
+            "A customer has successfully made a reservation.",
+            "",
+            `Reservation ID: ${reservation._id}`,
+            `Customer: ${req.user.name}`,
+            `Customer email: ${req.user.email}`,
+            `Massage shop: ${shop.name}`,
+            `Booking time: ${bookingTime} (Thailand time)`,
+            `Status: ${reservation.status}`,
+          ].join("\n"),
+        }).catch((err) => {
+          console.error("Admin notification email failed:", err.code || "UNKNOWN");
+        });
+      }
+    }
+
     return res.status(201).json({
       success: true,
       data: reservation,

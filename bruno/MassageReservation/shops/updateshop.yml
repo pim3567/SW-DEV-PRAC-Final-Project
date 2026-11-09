@@ -1,0 +1,44 @@
+info:
+  name: UpdateShop
+  type: http
+  seq: 3
+
+http:
+  method: PUT
+  url: "{{URL}}/api/v1/shops/{{shopId}}"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Sabai Massage Updated",
+        "address": "456 Bangkok Road, Updated",
+        "tel": "0891234568",
+        "description": "Updated Thai massage and foot massage",
+        "openingTime": "10:00",
+        "closingTime": "22:00"
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  variables:
+    - name: shopId
+      value: 6af09d6f8f64ca377fc9ab71
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body.success
+      operator: eq
+      value: "true"
+    - expression: res.body.data.name
+      operator: eq
+      value: Sabai Massage Updated
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

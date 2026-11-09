@@ -1,0 +1,17 @@
+info:
+  name: password-reset
+  type: folder
+  seq: 3
+
+request:
+  variables:
+    - name: resetEmail
+      value: user01@gmail.com
+    - name: resetOtp
+      value: "000000"
+    - name: resetToken
+      value: ""
+    - name: resetNewPassword
+      value: "123456789"
+    - name: resetConfirmPassword
+      value: "123456789"

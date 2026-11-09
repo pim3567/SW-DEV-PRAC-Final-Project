@@ -14,8 +14,10 @@ app.use(cookieParser());
 //mount routers
 const auth = require('./routes/auth');
 const shops = require('./routes/shops');
+const reservations = require('./routes/reservations');
 
 app.use('/api/v1/auth', auth);
 app.use('/api/v1/shops', shops);
+app.use('/api/v1/reservations', reservations);
 
 module.exports = app;

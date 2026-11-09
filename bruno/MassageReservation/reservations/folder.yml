@@ -1,0 +1,18 @@
+info:
+  name: reservations
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit
+  variables:
+    - name: reservationId
+      value: "000000"
+    - name: reservationShopId
+      value: REPLACE_WITH_SHOP_ID
+    - name: reservationDate
+      value: "2026-12-01"
+    - name: reservationStartTime
+      value: "14:00"
+    - name: updatedReservationStartTime
+      value: "15:00"

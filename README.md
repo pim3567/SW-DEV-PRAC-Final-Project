@@ -1,103 +1,89 @@
 # SW-DEV-PRAC-Final-Project
 
-Express REST API for massage shops and reservations, using MongoDB and JWT authentication.
+A REST API for booking massage appointments. Customers can browse massage shops and manage their reservations, while admins manage shops and reservations across all customers. The project provides a backend API tested through Bruno or Postman; a frontend is not included.
 
-## Environment setup
+## Features
 
-Run commands from the project root. Install dependencies, then copy the environment template:
+- Register, log in, and retrieve the current user's profile using JWT authentication.
+- Browse massage shops with their name, address, telephone number, and opening hours.
+- Create up to three active reservations per customer. Pending and confirmed reservations count toward the limit.
+- View, edit, and delete your own reservations.
+- Allow admins to view, edit, and delete any reservation, and create or edit shops.
+- Reset passwords using an emailed OTP and a single-use reset token. Successful resets invalidate existing login tokens.
+- Notify all admin accounts by email after a customer successfully creates a reservation.
 
-```powershell
-npm install
-Copy-Item config/config.env.example config/config.env
-```
+Public registration creates a normal user account. Admin permissions must be assigned separately through a trusted process.
 
-If `config/config.env` already exists, edit it instead of copying over your settings.
-The server loads this file using `dotenv` in `server.js`.
+## Technology
 
-Replace the placeholders in `config/config.env`:
-
-```dotenv
-PORT=5000
-NODE_ENV=development
-MONGO_URI=mongodb+srv://DB_USER:DB_PASSWORD@YOUR_CLUSTER.mongodb.net/massage_reservation?retryWrites=true&w=majority
-JWT_SECRET=REPLACE_WITH_RANDOM_SECRET
-JWT_EXPIRE=30d
-JWT_COOKIE_EXPIRE=30
-
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=yourname@gmail.com
-SMTP_PASSWORD=REPLACE_WITH_GOOGLE_APP_PASSWORD
-EMAIL_FROM=yourname@gmail.com
-
-# Customer-booking notification recipient and password-reset OTP secret:
-ADMIN_NOTIFICATION_EMAIL=admin@example.com
-OTP_SECRET=REPLACE_WITH_A_DIFFERENT_RANDOM_SECRET
-```
-
-| Variable | Purpose |
+| Area | Tools |
 |---|---|
-| `PORT` | API port; Bruno's `URL` must use the same port. |
-| `NODE_ENV` | Use `development` locally. Production enables secure login cookies. |
-| `MONGO_URI` | MongoDB connection string. Use Atlas or another replica set for reservation transactions. |
-| `JWT_SECRET` | Private signing key for login tokens. Changing it invalidates existing tokens. |
-| `JWT_EXPIRE` | Login token lifetime, such as `30d`. |
-| `JWT_COOKIE_EXPIRE` | Login cookie lifetime in days, such as `30`. |
-| `SMTP_HOST` | Your provider's outgoing email server. |
-| `SMTP_PORT` | `587` for STARTTLS, or `465` for immediate TLS. |
-| `SMTP_USER` | SMTP username; for Gmail, your full email address. |
-| `SMTP_PASSWORD` | Provider-issued SMTP credential; for Gmail, an App Password. |
-| `EMAIL_FROM` | Sender address authorized by the email provider. |
-| `ADMIN_NOTIFICATION_EMAIL` | Recipient notified after a customer successfully creates a reservation. Delivery failures are logged; automatic retries are not implemented. |
-| `OTP_SECRET` | Secret used to protect password-reset OTPs. Reset endpoints accept multipart fields or JSON. |
+| API | Node.js, Express |
+| Database | MongoDB, Mongoose |
+| Authentication | JSON Web Tokens, bcryptjs |
+| Email | Nodemailer with SMTP |
+| Request handling | JSON and multipart text fields through Multer |
+| Testing | Jest, Supertest, Bruno |
 
-### MongoDB Atlas
+## Getting started
 
-1. Create a cluster and a database user.
-2. Add your current public IP address to the project's IP access list.
-3. Choose **Connect > Drivers > Node.js** and copy the connection string.
-4. Replace its username and password placeholders and add `massage_reservation` as the database name.
-5. URL-encode special characters in the database password, for example `@` becomes `%40`.
+1. Install dependencies with `npm install`.
+2. Follow the [SMTP and environment setup guide](docs/STMPsetting.md) to configure MongoDB, JWT secrets, and email credentials.
+3. Start the API with `npm run dev`.
+4. Open `bruno/MassageReservation` in Bruno and use `http://localhost:5000` as `URL`, unless you changed the port.
 
-The connection string must start with `mongodb://` or `mongodb+srv://`.
-Reservation creation uses transactions, which require a replica set or sharded deployment; a standalone local MongoDB server is insufficient.
+Run commands from the project root. Reservation creation requires MongoDB transactions, so use Atlas or another replica set rather than a standalone database.
 
-### Generate secrets
+## API overview
 
-Run this command separately for `JWT_SECRET` and `OTP_SECRET`, using a different output for each:
+All endpoints use the `/api/v1` prefix. Protected endpoints require `Authorization: Bearer <token>`.
+
+| Method | Endpoint | Access |
+|---|---|---|
+| POST | `/auth/register` | Public |
+| POST | `/auth/login` | Public |
+| GET | `/auth/me`, `/auth/logout` | Logged-in user |
+| POST | `/auth/forgot-password` | Public, rate limited |
+| POST | `/auth/verify-otp` | Public, rate limited |
+| POST | `/auth/reset-password` | Public, rate limited |
+| GET | `/shops` | Public |
+| POST | `/shops` | Admin |
+| PUT | `/shops/:id` | Admin |
+| POST | `/reservations` | Logged-in user |
+| GET | `/reservations` | Own reservations; admins see all |
+| GET | `/reservations/:id` | Owner or admin |
+| PUT | `/reservations/:id` | Owner or admin |
+| DELETE | `/reservations/:id` | Owner or admin |
+
+## Project structure
+
+| Path | Purpose |
+|---|---|
+| `server.js` | Loads configuration, connects MongoDB, and starts the server |
+| `app.js` | Configures Express middleware and API routes |
+| `controllers/` | Authentication, password reset, shop, and reservation logic |
+| `models/` | Mongoose schemas |
+| `routes/` | Endpoint definitions and request parsing |
+| `middleware/` | Authentication and role checks |
+| `utils/` | Shared SMTP email utility |
+| `config/config.env.example` | Environment template with placeholders |
+| `bruno/MassageReservation/` | Bruno requests and variables |
+| `__tests__/` | Automated API and controller tests |
+| `docs/` | Environment setup and backend documentation |
+
+## Testing
 
 ```powershell
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+npm test
 ```
 
-### Gmail SMTP
+Automated tests use mocked database and email operations. For a manual check, configure your own database and SMTP credentials, log in through Bruno, and run the shop, reservation, or password-reset requests.
 
-1. Enable **2-Step Verification** on the sender's Google account.
-2. Open [Google App Passwords](https://myaccount.google.com/apppasswords).
-3. Create an App Password named `MassageReservation`.
-4. Set `SMTP_USER` and `EMAIL_FROM` to that account's email address.
-5. Put the generated App Password, without spaces, in `SMTP_PASSWORD`.
+Bruno requests use the most recent successful login's `token` variable. Replace placeholder IDs and select future booking dates before sending requests. Creating a customer reservation also attempts the admin notification email; email delivery failures are logged without undoing the booking, and automatic delivery retries are not implemented.
 
-Use an App Password instead of your normal Gmail password. Some school or work accounts restrict this feature.
-See [Google's App Password guide](https://support.google.com/accounts/answer/185833).
+## Documentation
 
-Check the SMTP connection without sending an email:
+- [SMTP and environment settings](docs/STMPsetting.md)
+- [Backend documentation](docs/readme.md)
 
-```powershell
-node -e "require('dotenv').config({path:'config/config.env'}); require('./utils/sendEmail').verifyEmailConnection().then(() => console.log('SMTP connection works')).catch(console.error)"
-```
-
-This checks connection and authentication; it does not confirm inbox delivery.
-
-### Start the API
-
-```powershell
-npm run dev
-```
-
-Look for `MongoDB Connected` in the terminal. Restart the server after changing environment settings.
-In Bruno, use `http://localhost:5000` for `URL` unless you changed `PORT`.
-
-`config/config.env` is ignored by Git. Commit the example file with placeholders, and keep real passwords, connection strings, and secrets private.
-
-See [the backend documentation](docs/readme.md) for additional API details.
+Keep real passwords, connection strings, and secrets in `config/config.env`, which is ignored by Git. Share the example configuration with placeholders.

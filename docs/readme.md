@@ -4,7 +4,7 @@ Express + MongoDB (Mongoose) backend with JWT authentication.
 
 ## Setup
 
-Follow the [environment setup guide](../README.md#environment-setup) for MongoDB Atlas, JWT secrets, Gmail SMTP, and connection checks.
+Follow the [environment setup guide](STMPsetting.md) for MongoDB Atlas, JWT secrets, Gmail SMTP, and connection checks.
 Copy `config/config.env.example` to `config/config.env` only if you do not already have local settings, then replace all placeholders.
 Run `npm run dev` (nodemon) or `node server.js` from the project root.
 

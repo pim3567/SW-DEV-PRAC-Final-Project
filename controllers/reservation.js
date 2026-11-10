@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Reservation = require("../models/Reservation");
 const MassageShop = require("../models/MassageShop");
 const User = require("../models/User");
+const SpecialClosingDate = require("../models/SpecialClosingDate");
 const { sendEmail } = require("../utils/sendEmail");
 
 const notifyReservationAdmins = async (reservation, customer, shop) => {
@@ -173,6 +174,12 @@ exports.createReservation = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: `Reservation time must be within the shop's operating hours: ${shop.openingTime} - ${shop.closingTime}`,
+      });
+    }
+    if (await SpecialClosingDate.exists({ shopId: shop._id, date: reservationDate })) {
+      return res.status(400).json({
+        success: false,
+        error: "The shop is closed on the selected date",
       });
     }
     const reservation = await mongoose.connection.transaction(async (session) => {
@@ -366,6 +373,12 @@ exports.updateReservation = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: `Reservation time must be within the shop's operating hours: ${shop.openingTime} - ${shop.closingTime}`,
+      });
+    }
+    if (await SpecialClosingDate.exists({ shopId: shop._id, date: reservationDate })) {
+      return res.status(400).json({
+        success: false,
+        error: "The shop is closed on the selected date",
       });
     }
 

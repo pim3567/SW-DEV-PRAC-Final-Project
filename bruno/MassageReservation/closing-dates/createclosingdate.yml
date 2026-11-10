@@ -1,0 +1,43 @@
+info:
+  name: CreateClosingDate
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{URL}}/api/v1/shops/{{shopId}}/closing-dates"
+  body:
+    type: json
+    data: |-
+      {
+        "date": "2026-12-31",
+        "reason": "New Year's Eve maintenance"
+      }
+  auth:
+    type: bearer
+    token: "{{adminToken}}"
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201 && res.body.data && res.body.data._id) {
+          bru.setVar("closingDateId", res.body.data._id);
+        }
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.success
+      operator: eq
+      value: "true"
+    - expression: res.body.data.date
+      operator: eq
+      value: "2026-12-31"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

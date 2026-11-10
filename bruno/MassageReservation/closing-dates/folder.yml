@@ -1,0 +1,12 @@
+info:
+  name: closing-dates
+  type: folder
+  seq: 5
+
+request:
+  auth: inherit
+  variables:
+    - name: shopId
+      value: 6af3414cce838441b3d1fdff
+    - name: closingDateId
+      value: 6af34224ce838441b3d1fe01

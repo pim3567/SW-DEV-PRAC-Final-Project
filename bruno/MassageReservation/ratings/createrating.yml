@@ -1,0 +1,40 @@
+info:
+  name: CreateRating
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{URL}}/api/v1/reservations/{{pastReservationId}}/rating"
+  body:
+    type: json
+    data: |-
+      {
+        "rating": 5,
+        "comment": "Great massage"
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  variables:
+    - name: pastReservationId
+      value: 6af09d6f8f64ca377fc9ab71
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.success
+      operator: eq
+      value: "true"
+    - expression: res.body.data.rating
+      operator: eq
+      value: "5"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

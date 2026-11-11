@@ -3,6 +3,7 @@ const multer = require('multer');
 const { getMyReservations, getReservation, createReservation, updateReservation, deleteReservation } = require('../controllers/reservation');
 
 const { protect } = require('../middleware/auth');
+const { createRating } = require('../controllers/ratings');
 
 const router = express.Router();
 
@@ -31,5 +32,6 @@ router.get('/:id', protect, getReservation);
 router.post('/', protect, parseReservationForm, createReservation);
 router.put('/:id', protect, parseReservationForm, updateReservation);
 router.delete('/:id', protect, deleteReservation);
+router.post('/:id/rating', protect, createRating);
 
 module.exports = router;

@@ -1,0 +1,33 @@
+info:
+  name: CreateRatingInvalid
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{URL}}/api/v1/reservations/{{pastReservationId}}/rating"
+  body:
+    type: json
+    data: |-
+      {
+        "rating": 6
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+    - expression: res.body.success
+      operator: eq
+      value: "false"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

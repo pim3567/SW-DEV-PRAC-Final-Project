@@ -1,0 +1,37 @@
+info:
+  name: CompleteReservation
+  type: http
+  seq: 6
+
+http:
+  method: PATCH
+  url: "{{URL}}/api/v1/reservations/:id/status"
+  params:
+    - name: id
+      value: "{{reservationId}}"
+      type: path
+  body:
+    type: multipart-form
+    data:
+      - name: status
+        type: text
+        value: completed
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body.data.status
+      operator: eq
+      value: completed
+
+settings:
+  encodeUrl: true
+  timeout: 15000
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

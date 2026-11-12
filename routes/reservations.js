@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const { getMyReservations, getReservation, createReservation, updateReservation, deleteReservation } = require('../controllers/reservation');
+const { getMyReservations, getReservation, createReservation, updateReservation, updateReservationStatus, deleteReservation } = require('../controllers/reservation');
 
 const { protect } = require('../middleware/auth');
 const { createRating } = require('../controllers/ratings');
@@ -31,6 +31,7 @@ router.get('/', protect, getMyReservations);
 router.get('/:id', protect, getReservation);
 router.post('/', protect, parseReservationForm, createReservation);
 router.put('/:id', protect, parseReservationForm, updateReservation);
+router.patch('/:id/status', protect, parseReservationForm, updateReservationStatus);
 router.delete('/:id', protect, deleteReservation);
 router.post('/:id/rating', protect, createRating);
 

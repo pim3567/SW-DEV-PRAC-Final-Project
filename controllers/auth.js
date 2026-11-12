@@ -14,7 +14,7 @@ exports.register = async (req, res, next) => {
             tel,
             email,
             password,
-            role:
+            role
         });
 
         // Fire-and-forget: email failure must not fail registration

@@ -6,7 +6,7 @@ const { sendWelcomeEmail } = require('../utils/welcomeEmail');
 //@access   Public
 exports.register = async (req, res, next) => {
     try {
-        const { name, tel, email, password } = req.body;
+        const { name, tel, email, password, role } = req.body;
 
         // Create user  
          const user = await User.create({
@@ -14,11 +14,13 @@ exports.register = async (req, res, next) => {
             tel,
             email,
             password,
-            role: 'user'
+            role
         });
 
         // Fire-and-forget: email failure must not fail registration
-        sendWelcomeEmail(user);
+        if (user.role === 'user') {
+            sendWelcomeEmail(user);
+        }
 
         sendTokenResponse(user, 200, res);
 

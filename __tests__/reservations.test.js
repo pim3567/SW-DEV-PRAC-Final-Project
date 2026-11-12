@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Reservation = require('../models/Reservation');
 const MassageShop = require('../models/MassageShop');
+const SpecialClosingDate = require('../models/SpecialClosingDate');
 const { sendEmail } = require('../utils/sendEmail');
 const { getMyReservations, createReservation, updateReservation, deleteReservation } = require('../controllers/reservation');
 
@@ -38,6 +39,7 @@ describe('Create reservations', () => {
         jest.spyOn(MassageShop, 'findById').mockResolvedValue({
             _id: shopId, name: 'Test Massage Shop', openingTime: '09:00', closingTime: '21:00'
         });
+        jest.spyOn(SpecialClosingDate, 'exists').mockResolvedValue(null);
 
         // In-memory transaction boundary: stage writes until commit and release locks on abort.
         jest.spyOn(mongoose.connection, 'transaction').mockImplementation(async callback => {
@@ -113,6 +115,17 @@ describe('Create reservations', () => {
             expect(rows).toHaveLength(0);
         }
     );
+
+    test('rejects a new booking on a special closing date before starting a transaction', async () => {
+        SpecialClosingDate.exists.mockResolvedValue({ _id: 'closed' });
+        const res = await book();
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toBe('The shop is closed on the selected date');
+        expect(SpecialClosingDate.exists).toHaveBeenCalledWith({ shopId, date: '2099-12-01' });
+        expect(mongoose.connection.transaction).not.toHaveBeenCalled();
+        expect(rows).toHaveLength(0);
+        expect(sendEmail).not.toHaveBeenCalled();
+    });
 
     test('accepts a real leap day and sets the authenticated owner and pending status', async () => {
         const res = await book({ reservationDate: '2096-02-29', userId: shopId, status: 'completed' });
@@ -263,6 +276,7 @@ describe('View, edit, and delete reservations', () => {
         jest.spyOn(MassageShop, 'findById').mockResolvedValue({
             _id: shopId, openingTime: '09:00', closingTime: '21:00'
         });
+        jest.spyOn(SpecialClosingDate, 'exists').mockResolvedValue(null);
         jest.spyOn(Reservation, 'findOneAndUpdate').mockImplementation(async (filter, update) => {
             if (filter._id !== reservation._id || (filter.userId && filter.userId !== reservation.userId)) {
                 return null;
@@ -470,6 +484,13 @@ describe('View, edit, and delete reservations', () => {
         null
     ])('rejects invalid booking changes %p without saving', async (body) => {
         const res = await edit(body);
+        expect(res.statusCode).toBe(400);
+        expect(persisted).toBeNull();
+    });
+
+    test('rejects moving a booking onto a special closing date', async () => {
+        SpecialClosingDate.exists.mockResolvedValue({ _id: 'closed' });
+        const res = await edit({ reservationDate: '2099-12-02' });
         expect(res.statusCode).toBe(400);
         expect(persisted).toBeNull();
     });

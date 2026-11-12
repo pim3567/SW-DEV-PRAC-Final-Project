@@ -1,0 +1,40 @@
+info:
+  name: UpdateClosingDate
+  type: http
+  seq: 3
+
+http:
+  method: PUT
+  url: "{{URL}}/api/v1/closing-dates/{{closingDateId}}"
+  body:
+    type: json
+    data: |-
+      {
+        "date": "2026-12-30",
+        "reason": "Staff training day"
+      }
+  auth:
+    type: bearer
+    token: "{{adminToken}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body.success
+      operator: eq
+      value: "true"
+    - expression: res.body.data.reason
+      operator: eq
+      value: Staff training day
+    - expression: res.body.data.date
+      operator: eq
+      value: "2026-12-30"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

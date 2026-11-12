@@ -15,9 +15,13 @@ app.use(cookieParser());
 const auth = require('./routes/auth');
 const shops = require('./routes/shops');
 const reservations = require('./routes/reservations');
+const ratings = require('./routes/ratings');
+const closingDates = require('./routes/closingDates');
 
 app.use('/api/v1/auth', auth);
 app.use('/api/v1/shops', shops);
 app.use('/api/v1/reservations', reservations);
+app.use('/api/v1/ratings', ratings);
+app.use('/api/v1/closing-dates', closingDates);
 
 module.exports = app;

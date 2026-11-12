@@ -56,7 +56,7 @@ const UserSchema = new mongoose.Schema({
         type: Date,
         select: false
     },
-    // Increment after a password reset to invalidate previously issued JWTs.
+    // Increment after logout or a password reset to invalidate previously issued JWTs.
     tokenVersion: {
         type: Number,
         default: 0

@@ -27,7 +27,7 @@ exports.protect = async (req, res, next) => {
         }
 
         if ((decoded.tokenVersion || 0) !== (req.user.tokenVersion || 0)) {
-            return res.status(401).json({ success: false, message: 'Password changed. Please log in again.' });
+            return res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
         }
 
         next();

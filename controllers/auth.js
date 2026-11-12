@@ -58,13 +58,25 @@ exports.login = async (req, res, next) => {
     sendTokenResponse(user, 200, res);
 }
 
-//@desc     Log user out / clear cookie
+//@desc     Log user out on all devices and clear cookie
 //@route    GET /api/v1/auth/logout
 //@access   Private
 exports.logout = async (req, res, next) => {
+    try {
+        const result = await User.updateOne(
+            { _id: req.user.id },
+            { $inc: { tokenVersion: 1 } }
+        );
+        if (result.matchedCount === 0) {
+            return res.status(401).json({ success: false, message: 'Not authorized to access this route' });
+        }
+    } catch (err) {
+        return res.status(500).json({ success: false, message: 'Unable to log out. Please try again.' });
+    }
     res.cookie('token', 'none', {
         expires: new Date(Date.now() + 10 * 1000),
-        httpOnly: true
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production'
     });
     res.status(200).json({ success: true, data: {} });
 };

@@ -28,8 +28,8 @@ exports.createRating = async (req, res) => {
         if (!reservation || String(reservation.userId) !== String(req.user.id)) {
             return res.status(404).json({ success: false, error: 'Reservation not found' });
         }
-        const completed = reservation.status === 'completed' ||
-            (reservation.status !== 'cancelled' && reservation.reservationDate.getTime() <= Date.now());
+        // Check if the reservation is completed
+        const completed = reservation.status === 'completed';
         if (!completed) {
             return res.status(400).json({
                 success: false,

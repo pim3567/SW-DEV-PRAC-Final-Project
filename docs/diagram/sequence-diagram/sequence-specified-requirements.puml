@@ -1,0 +1,153 @@
+@startuml
+title Specified Functional Requirements - Sequence Diagram
+autonumber
+
+actor User <<Visitor>>
+actor "Registered User" as RegisteredUser <<RegisteredUser>>
+actor Admin <<Administrator>>
+participant "Postman / API Client" as Client
+participant "Massage Reservation API" as API
+participant "Authentication Middleware" as Auth
+participant "Authentication Controller" as AuthController
+participant "Shop Controller" as ShopController
+participant "Reservation Controller" as ReservationController
+database MongoDB
+
+== Register ==
+User -> Client: Submit name, telephone, email, password
+Client -> API: POST /api/v1/auth/register
+API -> AuthController: register
+AuthController -> MongoDB: Validate and create user\n(hash password)
+MongoDB --> AuthController: New registered user
+AuthController --> API: User details and access token
+API --> Client: Registration successful
+Client --> User: Show account and token
+
+== Log in ==
+RegisteredUser -> Client: Enter email and password
+Client -> API: POST /api/v1/auth/login
+API -> AuthController: login
+AuthController -> MongoDB: Find user and password hash
+MongoDB --> AuthController: User record
+AuthController -> AuthController: Verify password and issue JWT
+AuthController --> API: Access token
+API --> Client: Login successful
+Client --> RegisteredUser: Store token
+
+== Browse shops ==
+RegisteredUser -> Client: Request massage shop list
+Client -> API: GET /api/v1/shops
+API -> ShopController: getShops
+ShopController -> MongoDB: Read shop information
+MongoDB --> ShopController: Names, addresses, telephone,\nopening and closing times
+ShopController --> API: Shop list
+API --> Client: 200 OK with shop list
+Client --> RegisteredUser: Display shops
+
+== Make a reservation ==
+RegisteredUser -> Client: Choose shop, date, and start time
+Client -> API: POST /api/v1/reservations\n(Bearer token, shopId, date, startTime)
+API -> Auth: Verify JWT and load user
+Auth -> MongoDB: Find user and check token version
+MongoDB --> Auth: Authenticated user
+Auth --> API: Continue as registered user
+API -> ReservationController: createReservation
+ReservationController -> MongoDB: Validate shop and operating hours
+MongoDB --> ReservationController: Shop exists and is open
+ReservationController -> MongoDB: Count user's confirmed reservations
+alt Fewer than 3 active reservations
+    MongoDB --> ReservationController: Limit not reached
+    ReservationController -> MongoDB: Create confirmed reservation
+    MongoDB --> ReservationController: Reservation
+    ReservationController --> API: 201 Created
+    API --> Client: Reservation details
+    Client --> RegisteredUser: Show confirmation
+else Already has 3 active reservations
+    MongoDB --> ReservationController: Limit reached
+    ReservationController --> API: 400 Reservation limit reached
+    API --> Client: Error response
+    Client --> RegisteredUser: Show limit message
+end
+
+== View own reservations ==
+RegisteredUser -> Client: Request my reservations
+Client -> API: GET /api/v1/reservations\n(Bearer token)
+API -> Auth: Verify JWT
+Auth -> MongoDB: Find user and check token version
+MongoDB --> Auth: Authenticated user
+Auth --> API: Continue as registered user
+API -> ReservationController: getMyReservations
+ReservationController -> MongoDB: Find reservations for this user
+MongoDB --> ReservationController: User's reservations
+ReservationController --> API: Reservation list
+API --> Client: 200 OK
+Client --> RegisteredUser: Display reservations
+
+== Edit or delete own reservation ==
+RegisteredUser -> Client: Edit reservation fields
+Client -> API: PUT /api/v1/reservations/{id}\n(Bearer token, updated fields)
+API -> Auth: Verify JWT
+Auth --> API: Authenticated user
+API -> ReservationController: updateReservation
+ReservationController -> MongoDB: Update only owner's reservation
+MongoDB --> ReservationController: Updated reservation or not found
+ReservationController --> API: Update result
+API --> Client: 200 OK or error
+
+RegisteredUser -> Client: Delete own reservation
+Client -> API: DELETE /api/v1/reservations/{id}\n(Bearer token)
+API -> Auth: Verify JWT
+Auth --> API: Authenticated user
+API -> ReservationController: deleteReservation
+ReservationController -> MongoDB: Delete only owner's reservation
+MongoDB --> ReservationController: Deleted reservation or not found
+ReservationController --> API: Delete result
+API --> Client: 200 OK or error
+
+== Admin manages any reservation ==
+Admin -> Client: Log in with email and password
+Client -> API: POST /api/v1/auth/login
+API -> AuthController: Verify credentials and issue JWT
+AuthController -> MongoDB: Find admin and verify password
+MongoDB --> AuthController: Admin account
+AuthController --> API: Admin access token
+API --> Client: Login successful
+
+Admin -> Client: View all reservations
+Client -> API: GET /api/v1/reservations\n(Admin Bearer token)
+API -> Auth: Verify JWT and admin role
+Auth -> MongoDB: Find admin and check token version
+MongoDB --> Auth: Admin account
+Auth --> API: Continue as admin
+API -> ReservationController: getMyReservations
+ReservationController -> MongoDB: Find all reservations
+MongoDB --> ReservationController: All reservations
+ReservationController --> API: Reservation list
+API --> Client: 200 OK
+
+Admin -> Client: Edit or delete any reservation
+Client -> API: PUT or DELETE /api/v1/reservations/{id}
+API -> Auth: Verify JWT and admin role
+Auth --> API: Continue as admin
+API -> ReservationController: Update or delete reservation
+ReservationController -> MongoDB: Apply admin operation to reservation
+MongoDB --> ReservationController: Operation result
+ReservationController --> API: Result
+API --> Client: 200 OK or error
+
+== Log out ==
+RegisteredUser -> Client: Log out
+Client -> API: GET /api/v1/auth/logout\n(Bearer token)
+API -> Auth: Verify JWT
+Auth --> API: Authenticated user
+API -> AuthController: logout
+AuthController -> MongoDB: Increment tokenVersion
+MongoDB --> AuthController: Session revoked
+AuthController --> API: Clear cookie and confirm
+API --> Client: Logout successful
+Client --> RegisteredUser: Clear local token
+
+note over Client, API
+    Requests can be exercised with Postman.
+end note
+@enduml

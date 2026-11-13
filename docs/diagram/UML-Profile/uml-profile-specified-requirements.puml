@@ -1,0 +1,103 @@
+@startuml
+left to right direction
+package "Massage Reservation System" {
+    class "<<Application>>\nMassageReservationService" as Service {}
+
+    class "<<Resource>>\nRegistration" as RegisterResource {
+        <<POST>> +register(request: RegistrationRequest): AuthResponse
+    }
+    class "<<Resource>>\nLogin" as LoginResource {
+        <<POST>> +login(request: LoginRequest): AuthResponse
+    }
+    class "<<Resource>>\nLogout" as LogoutResource {
+        <<GET>> +logout(): void
+    }
+    class "<<Resource>>\nShops" as ShopsResource {
+        <<GET>> +getShops(): Shop[*]
+    }
+    class "<<Resource>>\nReservations" as ReservationsResource {
+        <<GET>> +getReservations(): Reservation[*]
+        <<POST>> +createReservation(request: ReservationRequest): Reservation
+    }
+    class "<<Resource>>\nReservation" as ReservationResource {
+        <<GET>> +getReservation(): Reservation
+        <<PUT>> +updateReservation(request: ReservationRequest): Reservation
+        <<DELETE>> +deleteReservation(): Reservation
+    }
+
+    class "<<Representation>>\nRegistrationRequest" as RegistrationRequest {
+        -name: String
+        -tel: String
+        -email: String
+        -password: String
+    }
+    class "<<Representation>>\nLoginRequest" as LoginRequest {
+        -email: String
+        -password: String
+    }
+    class "<<Representation>>\nAuthResponse" as AuthResponse {
+        -success: Boolean
+        -_id: ObjectId
+        -name: String
+        -tel: String
+        -email: String
+        -role: String
+        -token: String
+    }
+    class "<<Representation>>\nShop" as Shop {
+        -_id: ObjectId
+        -name: String
+        -address: String
+        -tel: String
+        -openingTime: String
+        -closingTime: String
+    }
+    class "<<Representation>>\nReservationRequest" as ReservationRequest {
+        -shopId: ObjectId
+        -reservationDate: String
+        -startTime: String
+    }
+    class "<<Representation>>\nReservation" as Reservation {
+        -_id: ObjectId
+        -userId: ObjectId
+        -shopId: ObjectId
+        -reservationDate: Date
+        -startTime: String
+        -status: String
+    }
+}
+
+Service ..> RegisterResource : "/api/v1/auth/register\n<<Path>>"
+Service ..> LoginResource : "/api/v1/auth/login\n<<Path>>"
+Service ..> LogoutResource : "/api/v1/auth/logout\n<<Path>>"
+Service ..> ShopsResource : "/api/v1/shops\n<<Path>>"
+Service ..> ReservationsResource : "/api/v1/reservations\n<<Path>>"
+ReservationsResource ..> ReservationResource : "/{id}\n<<Path>>"
+
+RegisterResource ..> RegistrationRequest : "<<use>>"
+RegisterResource ..> AuthResponse : "<<use>>"
+LoginResource ..> LoginRequest : "<<use>>"
+LoginResource ..> AuthResponse : "<<use>>"
+ShopsResource ..> Shop : "<<use>>"
+ReservationsResource ..> ReservationRequest : "<<use>>"
+ReservationsResource ..> Reservation : "<<use>>"
+ReservationResource ..> ReservationRequest : "<<use>>"
+ReservationResource ..> Reservation : "<<use>>"
+
+note bottom of ReservationsResource
+    A user may have at most 3 confirmed reservations.
+    Users see their own reservations; admins see all.
+    The implementation requires a start time.
+end note
+note bottom of ReservationResource
+    Owners and admins can view, edit, or delete.
+    Only confirmed reservations can be edited.
+    Update requests may contain only the fields being changed.
+end note
+note bottom of Service
+    Method return types describe response payloads; most responses
+    wrap them in JSON with success and data fields. Resources and
+    representations are conceptual, not JavaScript class definitions.
+    GET responses may populate reservation references with objects.
+end note
+@enduml

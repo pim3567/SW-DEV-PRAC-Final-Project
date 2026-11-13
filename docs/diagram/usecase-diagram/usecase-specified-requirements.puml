@@ -1,0 +1,44 @@
+@startuml
+left to right direction
+
+actor User
+actor RegisteredUser
+actor Admin
+
+rectangle "Massage Reservation System" {
+    usecase "Register" as UC1
+    usecase "Login" as UC2
+    usecase "Logout" as UC3
+
+    usecase "View Massage Shop List" as UC4
+
+    usecase "Make a Reservation" as UC5
+    usecase "View my Reservation" as UC6
+    usecase "Edit my Reservation" as UC7
+    usecase "Delete my Reservation" as UC8
+
+    usecase "View any Reservation" as UC9
+    usecase "Edit any Reservation" as UC10
+    usecase "Delete any Reservation" as UC11
+}
+
+User --> UC1
+User --> UC2
+
+RegisteredUser --> UC3
+RegisteredUser --> UC4
+RegisteredUser --> UC5
+RegisteredUser --> UC6
+RegisteredUser --> UC7
+RegisteredUser --> UC8
+
+Admin --> UC9
+Admin --> UC10
+Admin --> UC11
+
+note right of UC5
+    Maximum 3 reservations
+    per registered user
+endnote
+
+@enduml

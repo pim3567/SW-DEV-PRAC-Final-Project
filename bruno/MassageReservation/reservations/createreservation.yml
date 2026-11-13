@@ -36,6 +36,9 @@ runtime:
     - expression: res.body.success
       operator: eq
       value: "true"
+    - expression: res.body.data.status
+      operator: eq
+      value: confirmed
 
 settings:
   encodeUrl: true

@@ -1,0 +1,242 @@
+@startuml
+left to right direction
+package "Massage Reservation System" {
+    class "<<Application>>\nMassageReservationService" as Service {}
+
+    class "<<Resource>>\nRegistration" as RegisterResource {
+        <<POST>> +register(request: RegistrationRequest): AuthResponse
+    }
+    class "<<Resource>>\nLogin" as LoginResource {
+        <<POST>> +login(request: LoginRequest): AuthResponse
+    }
+    class "<<Resource>>\nLogout" as LogoutResource {
+        <<GET>> +logout(): void
+    }
+    class "<<Resource>>\nCurrent User" as MeResource {
+        <<GET>> +getMe(): User
+    }
+    class "<<Resource>>\nForgot Password" as ForgotPasswordResource {
+        <<POST>> +requestOtp(request: ForgotPasswordRequest): void
+    }
+    class "<<Resource>>\nVerify OTP" as VerifyOtpResource {
+        <<POST>> +verifyOtp(request: VerifyOtpRequest): ResetToken
+    }
+    class "<<Resource>>\nReset Password" as ResetPasswordResource {
+        <<POST>> +resetPassword(request: ResetPasswordRequest): void
+    }
+    class "<<Resource>>\nShops" as ShopsResource {
+        <<GET>> +getShops(): Shop[*]
+        <<POST>> +createShop(request: Shop): Shop
+    }
+    class "<<Resource>>\nShop" as ShopResource {
+        <<PUT>> +updateShop(request: Shop): Shop
+    }
+    class "<<Resource>>\nReservations" as ReservationsResource {
+        <<GET>> +getReservations(): Reservation[*]
+        <<POST>> +createReservation(request: ReservationRequest): Reservation
+    }
+    class "<<Resource>>\nReservation" as ReservationResource {
+        <<GET>> +getReservation(): Reservation
+        <<PUT>> +updateReservation(request: ReservationRequest): Reservation
+        <<DELETE>> +deleteReservation(): Reservation
+    }
+    class "<<Resource>>\nReservation Status" as StatusResource {
+        <<PATCH>> +updateStatus(request: StatusRequest): Reservation
+    }
+    class "<<Resource>>\nReservation Rating" as ReservationRatingResource {
+        <<POST>> +createRating(request: RatingRequest): Rating
+    }
+    class "<<Resource>>\nRatings" as RatingsResource {
+        <<GET>> +getRatings(): Rating[*]
+    }
+    class "<<Resource>>\nShop Closing Dates" as ShopClosingDatesResource {
+        <<GET>> +getClosingDates(): ClosingDate[*]
+        <<POST>> +createClosingDate(request: ClosingDateRequest): ClosingDate
+    }
+    class "<<Resource>>\nClosing Date" as ClosingDateResource {
+        <<PUT>> +updateClosingDate(request: ClosingDateRequest): ClosingDate
+        <<DELETE>> +deleteClosingDate(): void
+    }
+
+    class "<<Representation>>\nRegistrationRequest" as RegistrationRequest {
+        -name: String
+        -tel: String
+        -email: String
+        -password: String
+        -role: String [optional]
+    }
+    class "<<Representation>>\nLoginRequest" as LoginRequest {
+        -email: String
+        -password: String
+    }
+    class "<<Representation>>\nAuthResponse" as AuthResponse {
+        -success: Boolean
+        -_id: ObjectId
+        -name: String
+        -tel: String
+        -email: String
+        -role: String
+        -token: String
+    }
+    class "<<Representation>>\nUser" as User {
+        -_id: ObjectId
+        -name: String
+        -tel: String
+        -email: String
+        -role: String
+    }
+    class "<<Representation>>\nForgotPasswordRequest" as ForgotPasswordRequest {
+        -email: String
+    }
+    class "<<Representation>>\nVerifyOtpRequest" as VerifyOtpRequest {
+        -email: String
+        -otp: String
+    }
+    class "<<Representation>>\nResetToken" as ResetToken {
+        -resetToken: String
+    }
+    class "<<Representation>>\nResetPasswordRequest" as ResetPasswordRequest {
+        -resetToken: String
+        -password: String
+        -confirmPassword: String
+    }
+    class "<<Representation>>\nShop" as Shop {
+        -_id: ObjectId
+        -name: String
+        -address: String
+        -tel: String
+        -description: String
+        -openingTime: String
+        -closingTime: String
+    }
+    class "<<Representation>>\nReservationRequest" as ReservationRequest {
+        -shopId: ObjectId
+        -reservationDate: String
+        -startTime: String
+    }
+    class "<<Representation>>\nReservation" as Reservation {
+        -_id: ObjectId
+        -userId: ObjectId
+        -shopId: ObjectId
+        -reservationDate: Date
+        -startTime: String
+        -status: String
+    }
+    class "<<Representation>>\nStatusRequest" as StatusRequest {
+        -status: String
+    }
+    class "<<Representation>>\nRatingRequest" as RatingRequest {
+        -rating: Integer
+        -comment: String
+    }
+    class "<<Representation>>\nRating" as Rating {
+        -_id: ObjectId
+        -reservationId: ObjectId
+        -userId: ObjectId
+        -shopId: ObjectId
+        -rating: Integer
+        -comment: String
+    }
+    class "<<Representation>>\nClosingDateRequest" as ClosingDateRequest {
+        -date: String
+        -reason: String
+    }
+    class "<<Representation>>\nClosingDate" as ClosingDate {
+        -_id: ObjectId
+        -shopId: ObjectId
+        -date: String
+        -reason: String
+    }
+    class "<<Service>>\nWelcomeEmail" as WelcomeEmail {}
+    class "<<Service>>\nEmailSender" as EmailSender {}
+    class "<<Model>>\nCoupon" as Coupon {
+        -code: String
+        -user: ObjectId
+        -discountPercent: Number
+        -expiresAt: Date
+        -used: Boolean
+    }
+}
+
+Service ..> RegisterResource : "/api/v1/auth/register\n<<Path>>"
+Service ..> LoginResource : "/api/v1/auth/login\n<<Path>>"
+Service ..> LogoutResource : "/api/v1/auth/logout\n<<Path>>"
+Service ..> MeResource : "/api/v1/auth/me\n<<Path>>"
+Service ..> ForgotPasswordResource : "/api/v1/auth/forgot-password\n<<Path>>"
+Service ..> VerifyOtpResource : "/api/v1/auth/verify-otp\n<<Path>>"
+Service ..> ResetPasswordResource : "/api/v1/auth/reset-password\n<<Path>>"
+Service ..> ShopsResource : "/api/v1/shops\n<<Path>>"
+ShopsResource ..> ShopResource : "/{id}\n<<Path>>"
+ShopResource ..> ShopClosingDatesResource : "/closing-dates\n<<Path>>"
+Service ..> ClosingDateResource : "/api/v1/closing-dates/{id}\n<<Path>>"
+Service ..> ReservationsResource : "/api/v1/reservations\n<<Path>>"
+ReservationsResource ..> ReservationResource : "/{id}\n<<Path>>"
+ReservationResource ..> StatusResource : "/status\n<<Path>>"
+ReservationResource ..> ReservationRatingResource : "/rating\n<<Path>>"
+Service ..> RatingsResource : "/api/v1/ratings\n<<Path>>"
+
+RegisterResource ..> RegistrationRequest : "<<use>>"
+RegisterResource ..> AuthResponse : "<<use>>"
+LoginResource ..> LoginRequest : "<<use>>"
+LoginResource ..> AuthResponse : "<<use>>"
+MeResource ..> User : "<<use>>"
+ForgotPasswordResource ..> ForgotPasswordRequest : "<<use>>"
+VerifyOtpResource ..> VerifyOtpRequest : "<<use>>"
+VerifyOtpResource ..> ResetToken : "<<use>>"
+ResetPasswordResource ..> ResetPasswordRequest : "<<use>>"
+ShopsResource ..> Shop : "<<use>>"
+ShopResource ..> Shop : "<<use>>"
+ReservationsResource ..> ReservationRequest : "<<use>>"
+ReservationsResource ..> Reservation : "<<use>>"
+ReservationResource ..> ReservationRequest : "<<use>>"
+ReservationResource ..> Reservation : "<<use>>"
+StatusResource ..> StatusRequest : "<<use>>"
+StatusResource ..> Reservation : "<<use>>"
+ReservationRatingResource ..> RatingRequest : "<<use>>"
+ReservationRatingResource ..> Rating : "<<use>>"
+RatingsResource ..> Rating : "<<use>>"
+ShopClosingDatesResource ..> ClosingDateRequest : "<<use>>"
+ShopClosingDatesResource ..> ClosingDate : "<<use>>"
+ClosingDateResource ..> ClosingDateRequest : "<<use>>"
+ClosingDateResource ..> ClosingDate : "<<use>>"
+RegisterResource ..> WelcomeEmail : "<<use>>"
+WelcomeEmail ..> Coupon : "<<create>>"
+WelcomeEmail ..> EmailSender : "<<use>>"
+ForgotPasswordResource ..> EmailSender : "<<use>>"
+ReservationsResource ..> EmailSender : "<<use>>"
+
+note bottom of ReservationsResource
+    At most 3 confirmed reservations per user.
+    Users see their own reservations; admins see all.
+    Booking a closed shop is rejected.
+end note
+note bottom of ReservationResource
+    Owners and admins can view or delete reservations.
+    Only confirmed reservations can be edited.
+    Update requests may contain only the fields being changed.
+end note
+note bottom of StatusResource
+    Owners and admins can change a confirmed reservation to
+    completed or cancelled without time-based validation.
+end note
+note bottom of ReservationRatingResource
+    An owner may rate a completed reservation once, from 1 to 5.
+    Authenticated users and admins may view all ratings.
+end note
+note bottom of ShopClosingDatesResource
+    Shop creation and editing and closing-date management
+    are admin-only. Shop listing is public.
+end note
+note bottom of EmailSender
+    OTP, welcome, and admin notification emails are asynchronous.
+    Delivery failures are logged; registration and reservation
+    success does not guarantee delivery.
+end note
+note bottom of Service
+    Method return types describe response payloads; most responses
+    wrap them in JSON with success and data fields. Resources and
+    representations are conceptual, not JavaScript class definitions.
+    Update requests can contain partial fields. GET responses may
+    populate reference fields with objects.
+end note
+@enduml

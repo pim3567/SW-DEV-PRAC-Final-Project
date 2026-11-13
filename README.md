@@ -6,13 +6,23 @@ A REST API for booking massage appointments. Customers can browse massage shops 
 
 - Register, log in, and retrieve the current user's profile using JWT authentication.
 - Browse massage shops with their name, address, telephone number, and opening hours.
-- Create up to three active reservations per customer. Pending and confirmed reservations count toward the limit.
+- Create up to three confirmed reservations per customer. Completed and cancelled reservations do not count toward the limit.
 - View, edit, and delete your own reservations.
 - Allow admins to view, edit, and delete any reservation, and create or edit shops.
 - Reset passwords using an emailed OTP and a single-use reset token. Successful resets invalidate existing login tokens.
 - Notify all admin accounts by email after a customer successfully creates a reservation.
 
 Public registration creates a normal user account. Admin permissions must be assigned separately through a trusted process.
+
+## Reservation lifecycle
+
+New bookings start as `confirmed`. The reservation owner or an admin can explicitly mark a confirmed booking `completed` or `cancelled`. Completion is allowed regardless of the scheduled date and time.
+
+Completed and cancelled bookings cannot change status or be rescheduled. Cancellation retains the booking history; the DELETE endpoint permanently removes a record.
+
+Use `PATCH /api/v1/reservations/:id/status` with `status` set to `completed` or `cancelled`. The Bruno collection includes separate completion and cancellation requests. Log in as the reservation owner or an admin before using them.
+
+If an existing database contains `pending` reservations, migrate those records to `confirmed` before running the new counting rule. Database migration is not automatic.
 
 ## Technology
 
@@ -53,6 +63,7 @@ All endpoints use the `/api/v1` prefix. Protected endpoints require `Authorizati
 | GET | `/reservations` | Own reservations; admins see all |
 | GET | `/reservations/:id` | Owner or admin |
 | PUT | `/reservations/:id` | Owner or admin |
+| PATCH | `/reservations/:id/status` | Owner or admin to complete or cancel |
 | DELETE | `/reservations/:id` | Owner or admin |
 
 ## Project structure

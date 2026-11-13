@@ -1,0 +1,128 @@
+@startuml
+left to right direction
+
+actor Visitor
+actor "Registered User" as RegisteredUser
+actor Admin
+actor "Email Service" as EmailService
+
+rectangle "Massage Reservation System" {
+    package "Account and Access" {
+        usecase "Register" as Register
+        usecase "Log In" as Login
+        usecase "Log Out" as Logout
+        usecase "Reset Password Using Email OTP" as ResetPasswordWithOtp
+        usecase "Send OTP to Registered Email" as SendOtp
+        usecase "Verify OTP" as VerifyOtp
+        usecase "Set and Confirm New Password" as ResetPassword
+        usecase "Generate Unique Promo Code" as GeneratePromoCode
+        usecase "Send Welcome Email with Promo Code" as SendWelcomeEmail
+    }
+
+    package "Massage Shops" {
+        usecase "View All Shop Information" as ViewShops
+        usecase "Create Shop Information" as CreateShop
+        usecase "Edit Shop Information" as EditShop
+    }
+
+    package "Reservations" {
+        usecase "Make Reservation" as MakeReservation
+        usecase "View Own Reservations" as ViewOwnReservations
+        usecase "Edit Own Reservation" as EditOwnReservation
+        usecase "Delete Own Reservation" as DeleteOwnReservation
+        usecase "Update Own Reservation Status" as UpdateOwnStatus
+        
+        usecase "View Any Reservation" as ViewAnyReservation
+        usecase "Edit Any Reservation" as EditAnyReservation
+        usecase "Delete Any Reservation" as DeleteAnyReservation
+        usecase "Update Any Reservation Status" as UpdateAnyStatus
+        usecase "Notify Admin of Successful Reservation" as NotifyAdmin
+
+        usecase "Check Shop Availability and Closing Dates" as CheckAvailability
+        usecase "Check Three-Reservation Limit" as CheckReservationLimit
+    }
+
+    package "Ratings" {
+        usecase "Submit Rating" as SubmitRating
+        usecase "View All Ratings" as ViewRatings
+    }
+
+    package "Special Closing Dates" {
+        usecase "Create Closing Date" as CreateClosingDate
+        usecase "View Shop Closing Dates" as ViewClosingDates
+        usecase "Update Closing Date" as UpdateClosingDate
+        usecase "Delete Closing Date" as DeleteClosingDate
+    }
+}
+
+Visitor --> Register
+Visitor --> Login
+RegisteredUser --> Login
+RegisteredUser --> Logout
+Admin --> Login
+Admin --> Logout
+RegisteredUser --> ResetPasswordWithOtp
+Admin --> ResetPasswordWithOtp
+ResetPasswordWithOtp ..> SendOtp : <<include>>
+ResetPasswordWithOtp ..> VerifyOtp : <<include>>
+ResetPasswordWithOtp ..> ResetPassword : <<include>>
+Register ..> GeneratePromoCode : <<include>>
+Register ..> SendWelcomeEmail : <<include>>
+EmailService -- SendOtp
+EmailService -- SendWelcomeEmail
+
+RegisteredUser --> ViewShops
+Admin --> ViewShops
+Admin --> CreateShop
+Admin --> EditShop
+
+RegisteredUser --> MakeReservation
+MakeReservation ..> CheckAvailability : <<include>>
+MakeReservation ..> CheckReservationLimit : <<include>>
+MakeReservation ..> NotifyAdmin : <<include>>
+EmailService -- NotifyAdmin
+RegisteredUser --> ViewOwnReservations
+RegisteredUser --> EditOwnReservation
+RegisteredUser --> DeleteOwnReservation
+RegisteredUser --> UpdateOwnStatus
+Admin --> ViewAnyReservation
+Admin --> EditAnyReservation
+Admin --> DeleteAnyReservation
+Admin --> UpdateAnyStatus
+
+RegisteredUser --> SubmitRating
+RegisteredUser --> ViewRatings
+Admin --> ViewRatings
+
+Admin --> CreateClosingDate
+Admin --> ViewClosingDates
+Admin --> UpdateClosingDate
+Admin --> DeleteClosingDate
+
+note right of MakeReservation
+    Specify shop, date, and start time.
+    A user may have at most 3 active reservations.
+end note
+
+note right of UpdateOwnStatus
+    User and admin may set a reservation
+    to completed or cancelled without
+    time-based validation.
+end note
+
+note right of SubmitRating
+    Rating is from 1 to 5 stars and is
+    allowed only for a completed reservation.
+end note
+
+note bottom of ResetPasswordWithOtp
+    Reset flow: request OTP, verify OTP,
+    then set and confirm a new password.
+end note
+
+note bottom of Register
+    A newly registered user receives a
+    unique promotional coupon by email.
+end note
+
+@enduml

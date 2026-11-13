@@ -64,7 +64,7 @@ describe('Create reservations', () => {
         });
         jest.spyOn(Reservation, 'countDocuments').mockImplementation(filter => {
             const count = () => rows.filter(row =>
-                row.userId === filter.userId && filter.status.$in.includes(row.status)
+                row.userId === filter.userId && row.status === filter.status
             ).length;
             return {
                 then(resolve, reject) { return Promise.resolve(count()).then(resolve, reject); },
@@ -127,16 +127,16 @@ describe('Create reservations', () => {
         expect(sendEmail).not.toHaveBeenCalled();
     });
 
-    test('accepts a real leap day and sets the authenticated owner and pending status', async () => {
+    test('accepts a real leap day and sets the authenticated owner and confirmed status', async () => {
         const res = await book({ reservationDate: '2096-02-29', userId: shopId, status: 'completed' });
         expect(res.statusCode).toBe(201);
         expect(res.body.data.reservationDate.toISOString()).toBe('2096-02-29T07:00:00.000Z');
         expect(rows[0].userId).toBe(userId);
-        expect(rows[0].status).toBe('pending');
+        expect(rows[0].status).toBe('confirmed');
     });
 
     test('only one of two concurrent requests can take the third active reservation', async () => {
-        rows.push({ userId, status: 'pending' }, { userId, status: 'confirmed' });
+        rows.push({ userId, status: 'confirmed' }, { userId, status: 'confirmed' });
         const results = await Promise.all([book(), book()]);
         expect(results.map(res => res.statusCode).sort()).toEqual([201, 400]);
         expect(rows).toHaveLength(3);
@@ -176,7 +176,7 @@ describe('Create reservations', () => {
     });
 
     test('does not notify admin for rejected or aborted bookings', async () => {
-        rows.push(...Array.from({ length: 3 }, () => ({ userId, status: 'pending' })));
+        rows.push(...Array.from({ length: 3 }, () => ({ userId, status: 'confirmed' })));
         expect((await book()).statusCode).toBe(400);
         expect(sendEmail).not.toHaveBeenCalled();
         rows.length = 0;
@@ -269,7 +269,7 @@ describe('View, edit, and delete reservations', () => {
             shopId,
             reservationDate: new Date('2099-12-01T07:00:00Z'),
             startTime: '14:00',
-            status: 'pending'
+            status: 'confirmed'
         };
         persisted = null;
         jest.spyOn(Reservation, 'findById').mockImplementation(async () => ({ ...reservation }));
@@ -281,7 +281,10 @@ describe('View, edit, and delete reservations', () => {
             if (filter._id !== reservation._id || (filter.userId && filter.userId !== reservation.userId)) {
                 return null;
             }
-            persisted = { ...reservation, ...update.$set };
+            if (filter.status && filter.status !== reservation.status) return null;
+            if (filter.reservationDate && !(reservation.reservationDate <= filter.reservationDate.$lte)) return null;
+            Object.assign(reservation, update.$set);
+            persisted = { ...reservation };
             return persisted;
         });
         // Keep the old implementation from reaching a real database during RED.
@@ -356,6 +359,81 @@ describe('View, edit, and delete reservations', () => {
         expect(res.status).toBe(401);
     });
 
+    async function changeStatus(status, requesterId = userId, role = 'user', id = reservationId) {
+        jest.spyOn(User, 'findById').mockResolvedValue({ id: requesterId, role });
+        const token = jwt.sign({ id: requesterId }, process.env.JWT_SECRET);
+        return request(require('../app')).patch(`/api/v1/reservations/${id}/status`)
+            .set('Authorization', `Bearer ${token}`)
+            .field('status', status);
+    }
+
+    test.each([
+        ['owner cancels', userId, 'user', 'cancelled', 200],
+        ['admin cancels', otherShopId, 'admin', 'cancelled', 200],
+        ['admin completes', otherShopId, 'admin', 'completed', 200],
+        ['owner completes', userId, 'user', 'completed', 200],
+        ['another user cannot complete', otherShopId, 'user', 'completed', 403],
+        ['another user cannot cancel', otherShopId, 'user', 'cancelled', 403]
+    ])('status change: %s', async (label, requesterId, role, status, expectedStatus) => {
+        reservation.reservationDate = new Date('2000-01-01T07:00:00Z');
+        const res = await changeStatus(status, requesterId, role);
+        expect(res.status).toBe(expectedStatus);
+        if (expectedStatus === 200) {
+            expect(res.body.data.status).toBe(status);
+            expect(res.body.data.userId).toBe(userId);
+        } else {
+            expect(reservation.status).toBe('confirmed');
+        }
+    });
+
+    test.each([
+        ['owner', userId, 'user'],
+        ['admin', otherShopId, 'admin']
+    ])('%s can explicitly complete a future booking', async (label, requesterId, role) => {
+        const res = await changeStatus('completed', requesterId, role);
+        expect(res.status).toBe(200);
+        expect(reservation.status).toBe('completed');
+    });
+
+    test.each(['completed', 'cancelled'])('cannot change a terminal %s status', async status => {
+        reservation.status = status;
+        const res = await changeStatus('cancelled', otherShopId, 'admin');
+        expect(res.status).toBe(409);
+        expect(reservation.status).toBe(status);
+    });
+
+    test.each(['confirmed', 'pending', 'invalid'])('rejects target status %s', async status => {
+        expect((await changeStatus(status)).status).toBe(400);
+        expect(persisted).toBeNull();
+    });
+
+    test('rejects invalid and missing reservation IDs on status changes', async () => {
+        expect((await changeStatus('cancelled', userId, 'user', '000000')).status).toBe(400);
+        Reservation.findById.mockResolvedValue(null);
+        expect((await changeStatus('cancelled')).status).toBe(404);
+    });
+
+    test('status changes require login', async () => {
+        const res = await request(require('../app')).patch(`/api/v1/reservations/${reservationId}/status`)
+            .send({ status: 'cancelled' });
+        expect(res.status).toBe(401);
+    });
+
+    test('only one competing cancellation or completion can succeed', async () => {
+        reservation.reservationDate = new Date('2000-01-01T07:00:00Z');
+        const results = await Promise.all([
+            changeStatus('completed', otherShopId, 'admin'),
+            changeStatus('cancelled', otherShopId, 'admin')
+        ]);
+        expect(results.map(res => res.status).sort()).toEqual([200, 409]);
+    });
+
+    test.each(['completed', 'cancelled'])('cannot reschedule a %s booking', async status => {
+        reservation.status = status;
+        expect((await edit({ startTime: '15:00' })).statusCode).toBe(409);
+        expect(persisted).toBeNull();
+    });
+
     test('owners can change time without changing the Thailand booking day', async () => {
         const res = await edit({ startTime: '15:00' });
         expect(res.statusCode).toBe(200);
@@ -395,7 +473,7 @@ describe('View, edit, and delete reservations', () => {
         const res = await edit({ startTime: '15:00', userId: otherShopId, status: 'completed' });
         expect(res.statusCode).toBe(200);
         expect(res.body.data.userId).toBe(userId);
-        expect(res.body.data.status).toBe('pending');
+        expect(res.body.data.status).toBe('confirmed');
     });
 
     test('cannot edit another user reservation', async () => {
@@ -410,7 +488,7 @@ describe('View, edit, and delete reservations', () => {
         });
         expect(res.statusCode).toBe(200);
         expect(res.body.data.userId).toBe(userId);
-        expect(res.body.data.status).toBe('pending');
+        expect(res.body.data.status).toBe('confirmed');
         expect(res.body.data.startTime).toBe('15:00');
     });
 

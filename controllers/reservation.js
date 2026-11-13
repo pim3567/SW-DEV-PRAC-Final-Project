@@ -198,7 +198,7 @@ exports.createReservation = async (req, res) => {
 
       const reservationCount = await Reservation.countDocuments({
         userId: req.user.id,
-        status: { $in: ["pending", "confirmed"] },
+        status: 'confirmed',
       }).session(session);
       if (reservationCount >= 3) {
         const error = new Error("You can have at most 3 active reservations");
@@ -211,7 +211,7 @@ exports.createReservation = async (req, res) => {
         shopId: shop._id,
         reservationDate: bookingDate,
         startTime,
-        status: "pending",
+        status: 'confirmed',
       }], { session });
       return reservations[0];
     }, {
@@ -280,6 +280,12 @@ exports.updateReservation = async (req, res) => {
       return res.status(403).json({
         success: false,
         error: "Not authorized to update this reservation",
+      });
+    }
+    if (reservation.status !== "confirmed") {
+      return res.status(409).json({
+        success: false,
+        error: "Only confirmed reservations can be edited",
       });
     }
     const body = req.body;
@@ -388,6 +394,7 @@ exports.updateReservation = async (req, res) => {
 
     const filter = {
       _id: req.params.id,
+      status: "confirmed",
     };
     if (req.user.role !== "admin") {
       filter.userId = req.user.id;
@@ -403,9 +410,9 @@ exports.updateReservation = async (req, res) => {
       },
     );
     if (!updatedReservation) {
-      return res.status(404).json({
+      return res.status(409).json({
         success: false,
-        error: "Reservation not found",
+        error: "Reservation changed or is no longer available",
       });
     }
     return res.status(200).json({
@@ -423,6 +430,87 @@ exports.updateReservation = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Unable to update reservation",
+    });
+  }
+};
+
+// @desc    Complete or cancel a confirmed reservation
+// @route   PATCH /api/v1/reservations/:id/status
+// @access  Reservation owner or admin
+exports.updateReservationStatus = async (req, res) => {
+  try {
+    if (!mongoose.isObjectIdOrHexString(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid reservation ID",
+      });
+    }
+    const { status } = req.body || {};
+    if (!["completed", "cancelled"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: "Status must be completed or cancelled",
+      });
+    }
+
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) {
+      return res.status(404).json({
+        success: false,
+        error: "Reservation not found",
+      });
+    }
+    if (reservation.userId.toString() !== req.user.id.toString() && req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        error: "Not authorized to change this reservation's status",
+      });
+    }
+    if (reservation.status !== "confirmed") {
+      return res.status(409).json({
+        success: false,
+        error: "Only confirmed reservations can change status",
+      });
+    }
+
+    const filter = {
+      _id: req.params.id,
+      status: "confirmed",
+    };
+    if (req.user.role !== "admin") {
+      filter.userId = req.user.id;
+    }
+
+    // Only one competing completion or cancellation can consume the confirmed state.
+    const updatedReservation = await Reservation.findOneAndUpdate(
+      filter,
+      { $set: { status } },
+      {
+        returnDocument: "after",
+        runValidators: true,
+      },
+    );
+    if (!updatedReservation) {
+      return res.status(409).json({
+        success: false,
+        error: "Reservation changed or is no longer available",
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      data: updatedReservation,
+    });
+  } catch (err) {
+    if (err.name === "ValidationError" || err.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid reservation status data",
+      });
+    }
+    console.error(err);
+    return res.status(500).json({
+      success: false,
+      error: "Unable to change reservation status",
     });
   }
 };

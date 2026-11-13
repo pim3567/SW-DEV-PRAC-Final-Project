@@ -1,0 +1,254 @@
+@startuml
+title Full System - Sequence Diagram
+autonumber
+
+actor User <<Visitor>>
+actor "Registered User" as RegisteredUser <<RegisteredUser>>
+actor Admin <<Administrator>>
+participant "Postman / API Client" as Client
+participant "Massage Reservation API" as API <<APIBoundary>>
+participant "Authentication Middleware" as Auth
+participant "Authentication Controller" as AuthController
+participant "Shop Controller" as ShopController
+participant "Reservation Controller" as ReservationController
+participant "Rating Controller" as RatingController
+participant "Closing Date Controller" as ClosingDateController
+database "MongoDB" as DB <<PersistentStore>>
+participant "Email Worker" as EmailWorker <<ExternalService>>
+actor "Email Provider" as EmailProvider <<EmailProvider>>
+
+== Registration and welcome coupon ==
+User -> Client: Submit name, telephone, email, password
+Client -> API: POST /api/v1/auth/register
+API -> AuthController: register
+AuthController -> DB: Create user (password hashed)
+DB --> AuthController: New user
+AuthController --> API: User details and JWT
+AuthController ->> EmailWorker: Generate coupon and send welcome email
+EmailWorker -> DB: Create unique promotional coupon
+DB --> EmailWorker: Coupon code and expiry
+EmailWorker -> EmailProvider: Send welcome email with promo code
+EmailProvider --> EmailWorker: Delivery result
+API --> Client: Registration successful
+Client --> User: Show account and token
+
+== Log in and log out ==
+RegisteredUser -> Client: Enter email and password
+Client -> API: POST /api/v1/auth/login
+API -> AuthController: login
+AuthController -> DB: Find user and password hash
+DB --> AuthController: User record
+AuthController -> AuthController: Verify password and issue JWT
+AuthController --> API: Access token
+API --> Client: Login successful
+
+RegisteredUser -> Client: Log out
+Client -> API: GET /api/v1/auth/logout\n(Bearer token)
+API -> Auth: Verify JWT
+Auth -> DB: Find user and check token version
+DB --> Auth: Authenticated user
+Auth --> API: Continue
+API -> AuthController: logout
+AuthController -> DB: Increment tokenVersion
+DB --> AuthController: Session revoked
+AuthController --> API: Logout successful
+API --> Client: Clear cookie and confirm
+
+== Password reset with OTP ==
+RegisteredUser -> Client: Request password reset by email
+Client -> API: POST /api/v1/auth/forgot-password
+API -> AuthController: forgotPassword
+AuthController -> DB: Find user; store OTP hash and expiry
+DB --> AuthController: Reset request recorded
+AuthController ->> EmailWorker: Send reset OTP
+EmailWorker -> EmailProvider: Deliver OTP to registered email
+EmailProvider --> EmailWorker: Delivery result
+AuthController --> API: Generic reset response
+API --> Client: Reset instructions
+
+RegisteredUser -> Client: Submit email and OTP
+Client -> API: POST /api/v1/auth/verify-otp
+API -> AuthController: verifyResetOtp
+AuthController -> DB: Verify OTP hash, expiry, and attempts
+alt OTP is valid
+    DB --> AuthController: Consume OTP; save reset-token hash
+    AuthController --> API: Reset token
+    API --> Client: Verification successful
+    RegisteredUser -> Client: Submit reset token and matching passwords
+    Client -> API: POST /api/v1/auth/reset-password
+    API -> AuthController: resetPassword
+    AuthController -> DB: Set password hash; consume token;\nrevoke existing sessions
+    DB --> AuthController: Password changed
+    AuthController --> API: Reset successful
+    API --> Client: Ask user to log in again
+else OTP is invalid or expired
+    DB --> AuthController: Verification failed
+    AuthController --> API: Invalid or expired OTP
+    API --> Client: Show error
+end
+
+== Shop information ==
+RegisteredUser -> Client: View all shops
+Client -> API: GET /api/v1/shops
+API -> ShopController: getShops
+ShopController -> DB: Read all shop information
+DB --> ShopController: Shop names, addresses, phones,\nopening and closing times
+ShopController --> API: Shop list
+API --> Client: 200 OK
+
+Admin -> Client: Create or edit shop information
+Client -> API: POST or PUT /api/v1/shops
+API -> Auth: Verify JWT and admin role
+Auth -> DB: Find admin and check token version
+DB --> Auth: Admin account
+Auth --> API: Continue as admin
+API -> ShopController: createShop or updateShop
+ShopController -> DB: Save shop information
+DB --> ShopController: Created or updated shop
+ShopController --> API: Shop result
+API --> Client: 201 Created or 200 OK
+
+== Create reservation and notify admin ==
+RegisteredUser -> Client: Select shop, date, and start time
+Client -> API: POST /api/v1/reservations\n(Bearer token, shopId, date, startTime)
+API -> Auth: Verify JWT
+Auth -> DB: Find user and check token version
+DB --> Auth: Authenticated user
+Auth --> API: Continue as registered user
+API -> ReservationController: createReservation
+ReservationController -> DB: Check shop and operating hours
+DB --> ReservationController: Shop details
+ReservationController -> DB: Check special closing date
+DB --> ReservationController: Shop open on selected date
+ReservationController -> DB: Start transaction; count confirmed bookings
+alt User has fewer than 3 active reservations
+    DB --> ReservationController: Reservation limit not reached
+    ReservationController -> DB: Create confirmed reservation and commit
+    DB --> ReservationController: Saved reservation
+    ReservationController ->> EmailWorker: Notify admins after commit
+    EmailWorker -> DB: Find admin email addresses
+    DB --> EmailWorker: Admin recipients
+    EmailWorker -> EmailProvider: Send booking notification
+    EmailProvider --> EmailWorker: Delivery result
+    ReservationController --> API: 201 Created
+    API --> Client: Reservation details
+else User already has 3 active reservations
+    DB --> ReservationController: Reservation limit reached
+    ReservationController --> API: 400 Reservation limit reached
+    API --> Client: Show limit error
+end
+
+== View and manage reservations ==
+RegisteredUser -> Client: View own reservations
+Client -> API: GET /api/v1/reservations\n(Bearer token)
+API -> Auth: Verify JWT
+Auth --> API: Authenticated user
+API -> ReservationController: getMyReservations
+ReservationController -> DB: Find reservations for current user
+DB --> ReservationController: Owner's reservations
+ReservationController --> API: Reservation list
+API --> Client: 200 OK
+
+RegisteredUser -> Client: Edit or delete own reservation
+Client -> API: PUT or DELETE /api/v1/reservations/{id}
+API -> Auth: Verify JWT
+Auth --> API: Authenticated user
+API -> ReservationController: updateReservation or deleteReservation
+ReservationController -> DB: Apply operation only to owner's reservation
+DB --> ReservationController: Operation result
+ReservationController --> API: Updated/deleted reservation or error
+API --> Client: Result
+
+Admin -> Client: View, edit, or delete any reservation
+Client -> API: GET, PUT, or DELETE /api/v1/reservations[/{id}]
+API -> Auth: Verify JWT and admin role
+Auth --> API: Continue as admin
+API -> ReservationController: Admin reservation operation
+ReservationController -> DB: Read or modify any reservation
+DB --> ReservationController: Reservation result
+ReservationController --> API: Result
+API --> Client: Result
+
+== Update reservation status ==
+alt Registered user changes own status
+    RegisteredUser -> Client: Set status to completed or cancelled
+    Client -> API: PATCH /api/v1/reservations/{id}/status
+    API -> Auth: Verify JWT
+    Auth --> API: Authenticated user
+    API -> ReservationController: updateReservationStatus
+    ReservationController -> DB: Update owned confirmed reservation
+    DB --> ReservationController: Updated status
+else Admin changes any reservation status
+    Admin -> Client: Set status to completed or cancelled
+    Client -> API: PATCH /api/v1/reservations/{id}/status
+    API -> Auth: Verify JWT and admin role
+    Auth --> API: Continue as admin
+    API -> ReservationController: updateReservationStatus
+    ReservationController -> DB: Update confirmed reservation
+    DB --> ReservationController: Updated status
+end
+note over ReservationController
+    Status changes have no time-based validation.
+end note
+
+== Submit and view ratings ==
+RegisteredUser -> Client: Submit 1-5 star rating for completed reservation
+Client -> API: POST /api/v1/reservations/{id}/rating
+API -> Auth: Verify JWT
+Auth --> API: Authenticated user
+API -> RatingController: createRating
+RatingController -> DB: Check ownership and completed status
+DB --> RatingController: Eligible reservation
+RatingController -> DB: Insert unique rating
+DB --> RatingController: Saved rating
+RatingController --> API: 201 Created
+API --> Client: Rating confirmation
+
+RegisteredUser -> Client: View all ratings
+Admin -> Client: View all ratings
+Client -> API: GET /api/v1/ratings
+API -> Auth: Verify JWT
+Auth --> API: Authenticated user or admin
+API -> RatingController: getRatings
+RatingController -> DB: Read ratings and shop/user details
+DB --> RatingController: Rating list
+RatingController --> API: Ratings
+API --> Client: 200 OK
+
+== Manage special closing dates ==
+Admin -> Client: Create closing date for a shop
+Client -> API: POST /api/v1/shops/{shopId}/closing-dates
+API -> Auth: Verify JWT and admin role
+Auth --> API: Continue as admin
+API -> ClosingDateController: createClosingDate
+ClosingDateController -> DB: Validate shop and save date
+DB --> ClosingDateController: Closing date
+ClosingDateController --> API: 201 Created
+API --> Client: Closing date details
+
+Admin -> Client: View closing dates for a shop
+Client -> API: GET /api/v1/shops/{shopId}/closing-dates
+API -> Auth: Verify JWT and admin role
+Auth --> API: Continue as admin
+API -> ClosingDateController: getClosingDates
+ClosingDateController -> DB: Read dates for shop
+DB --> ClosingDateController: Closing-date list
+ClosingDateController --> API: List
+API --> Client: 200 OK
+
+Admin -> Client: Update or delete closing date
+Client -> API: PUT or DELETE /api/v1/closing-dates/{id}
+API -> Auth: Verify JWT and admin role
+Auth --> API: Continue as admin
+API -> ClosingDateController: updateClosingDate or deleteClosingDate
+ClosingDateController -> DB: Update or delete closing date
+DB --> ClosingDateController: Operation result
+ClosingDateController --> API: Result
+API --> Client: 200 OK or error
+
+note over Client, API
+    The API can be exercised with Postman.
+    The 3-second performance target is a non-functional requirement,
+    not a timing guarantee shown by this interaction diagram.
+end note
+@enduml

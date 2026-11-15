@@ -15,7 +15,7 @@
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
-    "test": "jest --runInBand",
+    "test": "jest --runInBand --testPathIgnorePatterns=.history",
     "dev": "nodemon server.js"
   },
   "dependencies": {

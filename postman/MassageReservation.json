@@ -82,9 +82,12 @@
                     "packages": {},
                     "requests": {},
                     "exec": [
-                      "if (pm.response.code === 200 && pm.response.body.token) {",
-                      "  pm.variables.set(\"adminToken\", pm.response.body.token);",
-                      "  pm.variables.set(\"token\", pm.response.body.token);",
+                      "if (pm.response.code === 200) {",
+                      "  const body = pm.response.json();",
+                      "  if (body.token) {",
+                      "    pm.collectionVariables.set(\"adminToken\", body.token);",
+                      "    pm.collectionVariables.set(\"token\", body.token);",
+                      "  }",
                       "}"
                     ]
                   }
@@ -233,9 +236,12 @@
                     "packages": {},
                     "requests": {},
                     "exec": [
-                      "if (pm.response.code === 200 && pm.response.body.token) {",
-                      "  pm.variables.set(\"userToken\", pm.response.body.token);",
-                      "  pm.variables.set(\"token\", pm.response.body.token);",
+                      "if (pm.response.code === 200) {",
+                      "  const body = pm.response.json();",
+                      "  if (body.token) {",
+                      "    pm.collectionVariables.set(\"userToken\", body.token);",
+                      "    pm.collectionVariables.set(\"token\", body.token);",
+                      "  }",
                       "}"
                     ]
                   }
@@ -403,8 +409,11 @@
                     "packages": {},
                     "requests": {},
                     "exec": [
-                      "if (pm.response.code === 200 && pm.response.body.success && pm.response.body.resetToken) {",
-                      "  pm.variables.set(\"resetToken\", pm.response.body.resetToken);",
+                      "if (pm.response.code === 200) {",
+                      "  const body = pm.response.json();",
+                      "  if (body.success && body.resetToken) {",
+                      "    pm.collectionVariables.set(\"resetToken\", body.resetToken);",
+                      "  }",
                       "}"
                     ]
                   }
@@ -651,8 +660,11 @@
                 "packages": {},
                 "requests": {},
                 "exec": [
-                  "if (pm.response.code === 201 && pm.response.body.data && pm.response.body.data._id) {",
-                  "  pm.variables.set(\"reservationId\", pm.response.body.data._id);",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.data && body.data._id) {",
+                  "    pm.collectionVariables.set(\"reservationId\", body.data._id);",
+                  "  }",
                   "}"
                 ]
               }
@@ -988,8 +1000,11 @@
                 "packages": {},
                 "requests": {},
                 "exec": [
-                  "if (pm.response.code === 201 && pm.response.body.data && pm.response.body.data._id) {",
-                  "  pm.variables.set(\"closingDateId\", pm.response.body.data._id);",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.data && body.data._id) {",
+                  "    pm.collectionVariables.set(\"closingDateId\", body.data._id);",
+                  "  }",
                   "}"
                 ]
               }
@@ -1235,142 +1250,142 @@
     {
       "key": "URL",
       "value": "http://localhost:5000",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "token",
       "value": "",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "userToken",
       "value": "",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "adminToken",
       "value": "",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "userName",
       "value": "User01",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "userTel",
       "value": "0898765432",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "userEmail",
       "value": "user01@gmail.com",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "userPassword",
       "value": "12345678",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "adminName",
       "value": "Admin01",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "adminTel",
       "value": "0812345678",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "adminEmail",
       "value": "admin01@gmail.com",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "adminPassword",
       "value": "12345678",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "reservationId",
       "value": "000000000000000000000000",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "reservationShopId",
       "value": "000000000000000000000000",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "reservationDate",
       "value": "2026-11-20",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "reservationStartTime",
       "value": "15:00",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "updatedReservationStartTime",
       "value": "16:00",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "closingDateShopId",
       "value": "000000000000000000000000",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "closingDateId",
       "value": "000000000000000000000000",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "closingDate",
       "value": "2026-12-31",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "closingDateReason",
       "value": "New Year's Eve maintenance",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "updateShopId",
       "value": "000000000000000000000000",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "pastReservationId",
       "value": "000000000000000000000000",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "resetEmail",
       "value": "user01@gmail.com",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "resetOtp",
       "value": "000000",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "resetToken",
       "value": "",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "resetNewPassword",
       "value": "123456789",
-      "type": "default"
+      "type": "string"
     },
     {
       "key": "resetConfirmPassword",
       "value": "123456789",
-      "type": "default"
+      "type": "string"
     }
   ]
 }

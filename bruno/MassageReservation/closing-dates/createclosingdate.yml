@@ -5,13 +5,13 @@ info:
 
 http:
   method: POST
-  url: "{{URL}}/api/v1/shops/{{shopId}}/closing-dates"
+  url: "{{URL}}/api/v1/shops/{{closingDateShopId}}/closing-dates"
   body:
     type: json
     data: |-
       {
-        "date": "2026-12-31",
-        "reason": "New Year's Eve maintenance"
+        "date": "{{closingDate}}",
+        "reason": "{{closingDateReason}}"
       }
   auth:
     type: bearer
@@ -33,7 +33,7 @@ runtime:
       value: "true"
     - expression: res.body.data.date
       operator: eq
-      value: "2026-12-31"
+      value: "{{closingDate}}"
 
 settings:
   encodeUrl: true

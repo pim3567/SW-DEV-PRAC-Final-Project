@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{URL}}/api/v1/shops/{{shopId}}/closing-dates"
+  url: "{{URL}}/api/v1/shops/{{closingDateShopId}}/closing-dates"
   auth:
     type: bearer
     token: "{{adminToken}}"

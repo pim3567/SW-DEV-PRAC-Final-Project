@@ -5,7 +5,7 @@ info:
 
 http:
   method: PUT
-  url: "{{URL}}/api/v1/shops/{{shopId}}"
+  url: "{{URL}}/api/v1/shops/{{updateShopId}}"
   body:
     type: json
     data: |-
@@ -22,9 +22,6 @@ http:
     token: "{{token}}"
 
 runtime:
-  variables:
-    - name: shopId
-      value: 6af09d6f8f64ca377fc9ab71
   assertions:
     - expression: res.status
       operator: eq

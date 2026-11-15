@@ -1,0 +1,1391 @@
+{
+  "info": {
+    "name": "MassageReservation",
+    "description": null,
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "auth",
+      "item": [
+        {
+          "name": "admin",
+          "item": [
+            {
+              "name": "register",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{URL}}/api/v1/auth/register",
+                  "protocol": "",
+                  "host": [
+                    "{{URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "register"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"{{adminName}}\",\n    \"tel\": \"{{adminTel}}\",\n    \"email\": \"{{adminEmail}}\",\n    \"password\": \"{{adminPassword}}\",\n    \"role\": \"admin\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "login",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{URL}}/api/v1/auth/login",
+                  "protocol": "",
+                  "host": [
+                    "{{URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "login"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"email\": \"{{adminEmail}}\",\n    \"password\": \"{{adminPassword}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {},
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const body = pm.response.json();",
+                      "  if (body.token) {",
+                      "    pm.collectionVariables.set(\"adminToken\", body.token);",
+                      "    pm.collectionVariables.set(\"token\", body.token);",
+                      "  }",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get Me",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "",
+                "url": {
+                  "raw": "{{URL}}/api/v1/auth/me",
+                  "protocol": "",
+                  "host": [
+                    "{{URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "me"
+                  ],
+                  "query": [],
+                  "variable": []
+                }
+              }
+            },
+            {
+              "name": "logout",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "",
+                "url": {
+                  "raw": "{{URL}}/api/v1/auth/logout",
+                  "protocol": "",
+                  "host": [
+                    "{{URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "logout"
+                  ],
+                  "query": [],
+                  "variable": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "user",
+          "item": [
+            {
+              "name": "register",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{URL}}/api/v1/auth/register",
+                  "protocol": "",
+                  "host": [
+                    "{{URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "register"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"{{userName}}\",\n    \"tel\": \"{{userTel}}\",\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"{{userPassword}}\",\n    \"role\": \"user\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "login",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{URL}}/api/v1/auth/login",
+                  "protocol": "",
+                  "host": [
+                    "{{URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "login"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"{{userPassword}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {},
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const body = pm.response.json();",
+                      "  if (body.token) {",
+                      "    pm.collectionVariables.set(\"userToken\", body.token);",
+                      "    pm.collectionVariables.set(\"token\", body.token);",
+                      "  }",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get Me",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{userToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "",
+                "url": {
+                  "raw": "{{URL}}/api/v1/auth/me",
+                  "protocol": "",
+                  "host": [
+                    "{{URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "me"
+                  ],
+                  "query": [],
+                  "variable": []
+                }
+              }
+            },
+            {
+              "name": "logout",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{userToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "",
+                "url": {
+                  "raw": "{{URL}}/api/v1/auth/logout",
+                  "protocol": "",
+                  "host": [
+                    "{{URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "logout"
+                  ],
+                  "query": [],
+                  "variable": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "password-reset",
+          "item": [
+            {
+              "name": "Request Reset OTP",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "auth": {
+                  "type": "noauth"
+                },
+                "description": "",
+                "url": {
+                  "raw": "{{URL}}/api/v1/auth/forgot-password",
+                  "protocol": "",
+                  "host": [
+                    "{{URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "forgot-password"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "email",
+                      "disabled": false,
+                      "type": "text",
+                      "description": "",
+                      "value": "{{resetEmail}}"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Verify Reset OTP",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "auth": {
+                  "type": "noauth"
+                },
+                "description": "",
+                "url": {
+                  "raw": "{{URL}}/api/v1/auth/verify-otp",
+                  "protocol": "",
+                  "host": [
+                    "{{URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "verify-otp"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "email",
+                      "disabled": false,
+                      "type": "text",
+                      "description": "",
+                      "value": "{{resetEmail}}"
+                    },
+                    {
+                      "key": "otp",
+                      "disabled": false,
+                      "type": "text",
+                      "description": "",
+                      "value": "{{resetOtp}}"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {},
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const body = pm.response.json();",
+                      "  if (body.success && body.resetToken) {",
+                      "    pm.collectionVariables.set(\"resetToken\", body.resetToken);",
+                      "  }",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reset Password",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "auth": {
+                  "type": "noauth"
+                },
+                "description": "",
+                "url": {
+                  "raw": "{{URL}}/api/v1/auth/reset-password",
+                  "protocol": "",
+                  "host": [
+                    "{{URL}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "reset-password"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "resetToken",
+                      "disabled": false,
+                      "type": "text",
+                      "description": "",
+                      "value": "{{resetToken}}"
+                    },
+                    {
+                      "key": "password",
+                      "disabled": false,
+                      "type": "text",
+                      "description": "",
+                      "value": "{{resetNewPassword}}"
+                    },
+                    {
+                      "key": "confirmPassword",
+                      "disabled": false,
+                      "type": "text",
+                      "description": "",
+                      "value": "{{resetConfirmPassword}}"
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "auth": {
+            "type": "noauth"
+          }
+        }
+      ]
+    },
+    {
+      "name": "shops",
+      "item": [
+        {
+          "name": "CreateShop",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/shops",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shops"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sabai Massage\",\n  \"address\": \"456 Bangkok Road\",\n  \"tel\": \"0891234567\",\n  \"description\": \"Thai massage and foot massage\",\n  \"openingTime\": \"09:00\",\n  \"closingTime\": \"21:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GetAllShops",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/shops",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shops"
+              ],
+              "query": [],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "UpdateShop",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/shops/{{updateShopId}}",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shops",
+                "{{updateShopId}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sabai Massage Updated\",\n  \"address\": \"456 Bangkok Road, Updated\",\n  \"tel\": \"0891234568\",\n  \"description\": \"Updated Thai massage and foot massage\",\n  \"openingTime\": \"10:00\",\n  \"closingTime\": \"22:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "reservations",
+      "item": [
+        {
+          "name": "CreateReservation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/reservations",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "shopId",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "{{reservationShopId}}"
+                },
+                {
+                  "key": "reservationDate",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "{{reservationDate}}"
+                },
+                {
+                  "key": "startTime",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "{{reservationStartTime}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {},
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.data && body.data._id) {",
+                  "    pm.collectionVariables.set(\"reservationId\", body.data._id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GetAllReservations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/reservations",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations"
+              ],
+              "query": [],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "GetReservation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/reservations/:id",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations",
+                ":id"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{reservationId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "UpdateReservation",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/reservations/:id",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations",
+                ":id"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{reservationId}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "shopId",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "{{reservationShopId}}"
+                },
+                {
+                  "key": "reservationDate",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "{{reservationDate}}"
+                },
+                {
+                  "key": "startTime",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "{{updatedReservationStartTime}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "DeleteReservation",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/reservations/:id",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations",
+                ":id"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{reservationId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "CompleteReservation",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/reservations/:id/status",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations",
+                ":id",
+                "status"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{reservationId}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "status",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "completed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "CancelReservation",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/reservations/:id/status",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations",
+                ":id",
+                "status"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{reservationId}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "status",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "cancelled"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "closing-dates",
+      "item": [
+        {
+          "name": "CreateClosingDate",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/shops/{{closingDateShopId}}/closing-dates",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shops",
+                "{{closingDateShopId}}",
+                "closing-dates"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{closingDate}}\",\n  \"reason\": \"{{closingDateReason}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {},
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.data && body.data._id) {",
+                  "    pm.collectionVariables.set(\"closingDateId\", body.data._id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GetClosingDates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/shops/{{closingDateShopId}}/closing-dates",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shops",
+                "{{closingDateShopId}}",
+                "closing-dates"
+              ],
+              "query": [],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "UpdateClosingDate",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/closing-dates/{{closingDateId}}",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "closing-dates",
+                "{{closingDateId}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-12-30\",\n  \"reason\": \"Staff training day\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DeleteClosingDate",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/closing-dates/{{closingDateId}}",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "closing-dates",
+                "{{closingDateId}}"
+              ],
+              "query": [],
+              "variable": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "ratings",
+      "item": [
+        {
+          "name": "CreateRating",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/reservations/{{pastReservationId}}/rating",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations",
+                "{{pastReservationId}}",
+                "rating"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Great massage\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GetAllRatings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/ratings",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ratings"
+              ],
+              "query": [],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "CreateRatingInvalid",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "",
+            "url": {
+              "raw": "{{URL}}/api/v1/reservations/{{pastReservationId}}/rating",
+              "protocol": "",
+              "host": [
+                "{{URL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations",
+                "{{pastReservationId}}",
+                "rating"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 6\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "URL",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userName",
+      "value": "User01",
+      "type": "string"
+    },
+    {
+      "key": "userTel",
+      "value": "0898765432",
+      "type": "string"
+    },
+    {
+      "key": "userEmail",
+      "value": "user01@gmail.com",
+      "type": "string"
+    },
+    {
+      "key": "userPassword",
+      "value": "12345678",
+      "type": "string"
+    },
+    {
+      "key": "adminName",
+      "value": "Admin01",
+      "type": "string"
+    },
+    {
+      "key": "adminTel",
+      "value": "0812345678",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin01@gmail.com",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
+      "value": "12345678",
+      "type": "string"
+    },
+    {
+      "key": "reservationId",
+      "value": "000000000000000000000000",
+      "type": "string"
+    },
+    {
+      "key": "reservationShopId",
+      "value": "000000000000000000000000",
+      "type": "string"
+    },
+    {
+      "key": "reservationDate",
+      "value": "2026-11-20",
+      "type": "string"
+    },
+    {
+      "key": "reservationStartTime",
+      "value": "15:00",
+      "type": "string"
+    },
+    {
+      "key": "updatedReservationStartTime",
+      "value": "16:00",
+      "type": "string"
+    },
+    {
+      "key": "closingDateShopId",
+      "value": "000000000000000000000000",
+      "type": "string"
+    },
+    {
+      "key": "closingDateId",
+      "value": "000000000000000000000000",
+      "type": "string"
+    },
+    {
+      "key": "closingDate",
+      "value": "2026-12-31",
+      "type": "string"
+    },
+    {
+      "key": "closingDateReason",
+      "value": "New Year's Eve maintenance",
+      "type": "string"
+    },
+    {
+      "key": "updateShopId",
+      "value": "000000000000000000000000",
+      "type": "string"
+    },
+    {
+      "key": "pastReservationId",
+      "value": "000000000000000000000000",
+      "type": "string"
+    },
+    {
+      "key": "resetEmail",
+      "value": "user01@gmail.com",
+      "type": "string"
+    },
+    {
+      "key": "resetOtp",
+      "value": "000000",
+      "type": "string"
+    },
+    {
+      "key": "resetToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resetNewPassword",
+      "value": "123456789",
+      "type": "string"
+    },
+    {
+      "key": "resetConfirmPassword",
+      "value": "123456789",
+      "type": "string"
+    }
+  ]
+}

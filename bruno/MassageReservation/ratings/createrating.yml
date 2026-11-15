@@ -18,9 +18,6 @@ http:
     token: "{{token}}"
 
 runtime:
-  variables:
-    - name: pastReservationId
-      value: 6af09d6f8f64ca377fc9ab71
   assertions:
     - expression: res.status
       operator: eq

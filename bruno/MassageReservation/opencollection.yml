@@ -18,6 +18,60 @@ request:
   variables:
     - name: URL
       value: http://localhost:5000
+    - name: token
+      value: ""
+    - name: userToken
+      value: ""
+    - name: adminToken
+      value: ""
+    - name: userName
+      value: User01
+    - name: userTel
+      value: "0898765432"
+    - name: userEmail
+      value: user01@gmail.com
+    - name: userPassword
+      value: "12345678"
+    - name: adminName
+      value: Admin01
+    - name: adminTel
+      value: "0812345678"
+    - name: adminEmail
+      value: admin01@gmail.com
+    - name: adminPassword
+      value: "12345678"
+    - name: reservationId
+      value: "000000000000000000000000"
+    - name: reservationShopId
+      value: "000000000000000000000000"
+    - name: reservationDate
+      value: 2026-11-20
+    - name: reservationStartTime
+      value: 15:00
+    - name: updatedReservationStartTime
+      value: 16:00
+    - name: closingDateShopId
+      value: "000000000000000000000000"
+    - name: closingDateId
+      value: "000000000000000000000000"
+    - name: closingDate
+      value: 2026-12-31
+    - name: closingDateReason
+      value: New Year's Eve maintenance
+    - name: updateShopId
+      value: "000000000000000000000000"
+    - name: pastReservationId
+      value: "000000000000000000000000"
+    - name: resetEmail
+      value: user01@gmail.com
+    - name: resetOtp
+      value: "000000"
+    - name: resetToken
+      value: ""
+    - name: resetNewPassword
+      value: "123456789"
+    - name: resetConfirmPassword
+      value: "123456789"
 bundled: false
 extensions:
   bruno:

@@ -1,0 +1,25 @@
+@startuml
+title Log In
+autonumber
+actor "Registered User / Admin" as User
+participant "Postman / API Client" as Client
+participant "Massage Reservation API" as API
+participant "Authentication Controller" as Controller
+database MongoDB as DB
+
+User -> Client: Enter email and password
+Client -> API: POST /api/v1/auth/login
+API -> Controller: login
+Controller -> DB: Find user by email
+DB --> Controller: User and password hash, or no user
+alt Credentials are valid
+    Controller -> Controller: Verify password and generate JWT
+    Controller --> API: 200 OK, account and token
+    API --> Client: Login successful
+    Client --> User: Store token
+else Missing or invalid credentials
+    Controller --> API: 400 or 401
+    API --> Client: Error response
+    Client --> User: Show error
+end
+@enduml

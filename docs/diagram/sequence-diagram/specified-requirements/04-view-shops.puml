@@ -1,0 +1,28 @@
+@startuml
+title View Massage Shop List
+autonumber
+actor "Registered User" as User
+participant "Postman / API Client" as Client
+participant "Massage Reservation API" as API
+participant "Shop Controller" as Controller
+database MongoDB as DB
+
+User -> Client: Request massage shop list
+Client -> API: GET /api/v1/shops
+API -> Controller: getShops
+Controller -> DB: Find and sort shops
+alt Query succeeds
+    DB --> Controller: Shop information
+    Controller --> API: 200 OK with shop list
+    API --> Client: Names, addresses, telephone numbers,\nopening and closing times
+    Client --> User: Display shops
+else Database error
+    DB --> Controller: Error
+    Controller --> API: 500 Unable to retrieve shops
+    API --> Client: Error response
+    Client --> User: Show error
+end
+note over API
+    Shop listing is public in the current implementation.
+end note
+@enduml

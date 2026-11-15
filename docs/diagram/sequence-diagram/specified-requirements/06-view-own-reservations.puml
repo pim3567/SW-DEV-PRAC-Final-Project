@@ -1,0 +1,29 @@
+@startuml
+title View Own Reservations
+autonumber
+actor "Registered User" as User
+participant "Postman / API Client" as Client
+participant "Massage Reservation API" as API
+participant "Authentication Middleware" as Auth
+participant "Reservation Controller" as Controller
+database MongoDB as DB
+
+User -> Client: Request my reservations
+Client -> API: GET /api/v1/reservations\n(Bearer token)
+API -> Auth: Verify token and load user
+Auth -> DB: Find user and check token version
+DB --> Auth: User
+alt Token is valid
+    Auth --> API: Authenticated user
+    API -> Controller: getMyReservations
+    Controller -> DB: Find reservations for current user
+    DB --> Controller: User's reservations
+    Controller --> API: 200 OK and reservation list
+    API --> Client: Reservation list
+    Client --> User: Display reservations
+else Token is invalid or expired
+    Auth --> API: 401 Unauthorized
+    API --> Client: Error response
+    Client --> User: Show error
+end
+@enduml

@@ -1,0 +1,34 @@
+@startuml
+title Admin Views Reservations
+autonumber
+actor Admin
+participant "Postman / API Client" as Client
+participant "Massage Reservation API" as API
+participant "Authentication Middleware" as Auth
+participant "Reservation Controller" as Controller
+database MongoDB as DB
+
+Admin -> Client: Request all reservations
+Client -> API: GET /api/v1/reservations\n(Admin Bearer token)
+API -> Auth: Verify token and load user
+Auth -> DB: Find user and check token version
+DB --> Auth: Admin account
+alt Token is valid
+    Auth --> API: Authenticated admin
+    API -> Controller: getMyReservations
+    Controller -> Controller: Check user's admin role
+    Controller -> DB: Find all reservations
+    DB --> Controller: Reservation list
+    Controller --> API: 200 OK
+    API --> Client: All reservations
+    Client --> Admin: Display reservations
+else Token is invalid or expired
+    Auth --> API: 401 Unauthorized
+    API --> Client: Error response
+    Client --> Admin: Show error
+end
+note over Controller
+    A non-admin receives only their own reservations.
+    Admins can also retrieve a specific reservation by id.
+end note
+@enduml

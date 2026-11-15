@@ -1,0 +1,36 @@
+@startuml
+title Log Out
+autonumber
+actor "Registered User / Admin" as User
+participant "Postman / API Client" as Client
+participant "Massage Reservation API" as API
+participant "Authentication Middleware" as Auth
+participant "Authentication Controller" as Controller
+database MongoDB as DB
+
+User -> Client: Log out
+Client -> API: GET /api/v1/auth/logout\n(Bearer token)
+API -> Auth: Verify token and load user
+Auth -> DB: Find user and check token version
+DB --> Auth: User
+alt Token is valid
+    Auth --> API: Authenticated user
+    API -> Controller: logout
+    Controller -> DB: Increment tokenVersion
+    alt Revocation succeeds
+        DB --> Controller: User updated
+        Controller --> API: 200 OK and clear cookie
+        API --> Client: Logout successful
+        Client --> User: Clear local token
+    else Revocation fails
+        DB --> Controller: Error or missing user
+        Controller --> API: 500 or 401
+        API --> Client: Error response
+        Client --> User: Show error
+    end
+else Token is invalid or expired
+    Auth --> API: 401 Unauthorized
+    API --> Client: Error response
+    Client --> User: Show error
+end
+@enduml

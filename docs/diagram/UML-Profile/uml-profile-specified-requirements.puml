@@ -84,20 +84,20 @@ ReservationsResource ..> Reservation : "<<use>>"
 ReservationResource ..> ReservationRequest : "<<use>>"
 ReservationResource ..> Reservation : "<<use>>"
 
-note bottom of ReservationsResource
-    A user may have at most 3 confirmed reservations.
-    Users see their own reservations; admins see all.
-    The implementation requires a start time.
-end note
-note bottom of ReservationResource
-    Owners and admins can view, edit, or delete.
-    Only confirmed reservations can be edited.
-    Update requests may contain only the fields being changed.
-end note
-note bottom of Service
-    Method return types describe response payloads; most responses
-    wrap them in JSON with success and data fields. Resources and
-    representations are conceptual, not JavaScript class definitions.
-    GET responses may populate reservation references with objects.
-end note
+' note bottom of ReservationsResource
+'     A user may have at most 3 confirmed reservations.
+'     Users see their own reservations; admins see all.
+'     The implementation requires a start time.
+' end note
+' note bottom of ReservationResource
+'     Owners and admins can view, edit, or delete.
+'     Only confirmed reservations can be edited.
+'     Update requests may contain only the fields being changed.
+' end note
+' note bottom of Service
+'     Method return types describe response payloads; most responses
+'     wrap them in JSON with success and data fields. Resources and
+'     representations are conceptual, not JavaScript class definitions.
+'     GET responses may populate reservation references with objects.
+' end note
 @enduml

@@ -1,0 +1,38 @@
+@startuml
+title Admin Deletes Any Reservation
+autonumber
+actor Admin
+participant "Postman / API Client" as Client
+participant "Massage Reservation API" as API
+participant "Authentication Middleware" as Auth
+participant "Reservation Controller" as Controller
+database MongoDB as DB
+
+Admin -> Client: Delete a reservation
+Client -> API: DELETE /api/v1/reservations/{id}\n(Admin Bearer token)
+API -> Auth: Verify token and load user
+Auth -> DB: Find user and check token version
+DB --> Auth: Admin account
+alt Token is valid
+    Auth --> API: Authenticated admin
+    API -> Controller: deleteReservation
+    Controller -> DB: Find reservation by id
+    DB --> Controller: Reservation
+    alt Reservation exists
+        Controller -> Controller: Check admin role
+        Controller -> DB: Delete reservation
+        DB --> Controller: Deleted reservation
+        Controller --> API: 200 OK
+        API --> Client: Deleted reservation
+        Client --> Admin: Show confirmation
+    else Invalid id or missing reservation
+        Controller --> API: 400 or 404
+        API --> Client: Error response
+        Client --> Admin: Show error
+    end
+else Token is invalid or expired
+    Auth --> API: 401 Unauthorized
+    API --> Client: Error response
+    Client --> Admin: Show error
+end
+@enduml

@@ -32,6 +32,7 @@ RegisteredUser --> UC6
 RegisteredUser --> UC7
 RegisteredUser --> UC8
 
+Admin --> UC3
 Admin --> UC9
 Admin --> UC10
 Admin --> UC11

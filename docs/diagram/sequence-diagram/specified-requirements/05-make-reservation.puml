@@ -1,0 +1,48 @@
+@startuml
+title Make a Reservation
+autonumber
+actor "Registered User" as User
+participant "Postman / API Client" as Client
+participant "Massage Reservation API" as API
+participant "Authentication Middleware" as Auth
+participant "Reservation Controller" as Controller
+database MongoDB as DB
+
+User -> Client: Select shop, date, and start time
+Client -> API: POST /api/v1/reservations\n(Bearer token, shopId, reservationDate, startTime)
+API -> Auth: Verify token and load user
+Auth -> DB: Find user and check token version
+DB --> Auth: User
+alt Token is valid
+    Auth --> API: Authenticated user
+    API -> Controller: createReservation
+    Controller -> Controller: Validate date and time
+    opt Date, time, and shop ID are valid
+        Controller -> DB: Find shop and check closing date
+        DB --> Controller: Shop and closing-date information
+    end
+    alt Valid future time and shop is open
+        Controller -> DB: Begin transaction; update user lock\nand count confirmed reservations
+        DB --> Controller: Active reservation count
+        alt Fewer than 3 confirmed reservations
+            Controller -> DB: Create confirmed reservation and commit
+            DB --> Controller: Saved reservation
+            Controller --> API: 201 Created
+            API --> Client: Reservation details
+            Client --> User: Show confirmation
+        else At least 3 confirmed reservations
+            Controller --> API: 400 Reservation limit reached
+            API --> Client: Error response
+            Client --> User: Show limit message
+        end
+    else Invalid data, missing shop, or shop closed
+        Controller --> API: 400 or 404
+        API --> Client: Error response
+        Client --> User: Show error
+    end
+else Token is invalid or expired
+    Auth --> API: 401 Unauthorized
+    API --> Client: Error response
+    Client --> User: Show error
+end
+@enduml

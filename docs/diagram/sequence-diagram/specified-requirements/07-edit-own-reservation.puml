@@ -1,0 +1,42 @@
+@startuml
+title Edit Own Reservation
+autonumber
+actor "Registered User" as User
+participant "Postman / API Client" as Client
+participant "Massage Reservation API" as API
+participant "Authentication Middleware" as Auth
+participant "Reservation Controller" as Controller
+database MongoDB as DB
+
+User -> Client: Edit reservation shop, date, or time
+Client -> API: PUT /api/v1/reservations/{id}\n(Bearer token, updated fields)
+API -> Auth: Verify token and load user
+Auth -> DB: Find user and check token version
+DB --> Auth: User
+alt Token is valid
+    Auth --> API: Authenticated user
+    API -> Controller: updateReservation
+    Controller -> DB: Find reservation by id
+    DB --> Controller: Reservation
+    Controller -> Controller: Check ownership, confirmed status,\nand updated fields
+    opt Reservation and updated fields pass initial checks
+        Controller -> DB: Check shop and closing date
+        DB --> Controller: Shop and closing-date information
+    end
+    alt Owner and update is valid
+        Controller -> DB: Update confirmed reservation for owner
+        DB --> Controller: Updated reservation
+        Controller --> API: 200 OK
+        API --> Client: Updated reservation
+        Client --> User: Show update
+    else Missing, unauthorized, or invalid update
+        Controller --> API: 400, 403, 404, or 409
+        API --> Client: Error response
+        Client --> User: Show error
+    end
+else Token is invalid or expired
+    Auth --> API: 401 Unauthorized
+    API --> Client: Error response
+    Client --> User: Show error
+end
+@enduml

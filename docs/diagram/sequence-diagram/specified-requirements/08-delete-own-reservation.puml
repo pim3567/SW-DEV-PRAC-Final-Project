@@ -1,0 +1,37 @@
+@startuml
+title Delete Own Reservation
+autonumber
+actor "Registered User" as User
+participant "Postman / API Client" as Client
+participant "Massage Reservation API" as API
+participant "Authentication Middleware" as Auth
+participant "Reservation Controller" as Controller
+database MongoDB as DB
+
+User -> Client: Delete my reservation
+Client -> API: DELETE /api/v1/reservations/{id}\n(Bearer token)
+API -> Auth: Verify token and load user
+Auth -> DB: Find user and check token version
+DB --> Auth: User
+alt Token is valid
+    Auth --> API: Authenticated user
+    API -> Controller: deleteReservation
+    Controller -> DB: Find reservation by id
+    DB --> Controller: Reservation
+    alt Reservation exists and user is owner
+        Controller -> DB: Delete reservation for owner
+        DB --> Controller: Deleted reservation
+        Controller --> API: 200 OK
+        API --> Client: Deleted reservation
+        Client --> User: Show confirmation
+    else Invalid id, missing reservation, or not owner
+        Controller --> API: 400, 404, or 403
+        API --> Client: Error response
+        Client --> User: Show error
+    end
+else Token is invalid or expired
+    Auth --> API: 401 Unauthorized
+    API --> Client: Error response
+    Client --> User: Show error
+end
+@enduml

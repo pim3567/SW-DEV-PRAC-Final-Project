@@ -1,0 +1,26 @@
+@startuml
+title Register
+autonumber
+actor User
+participant "Postman / API Client" as Client
+participant "Massage Reservation API" as API
+participant "Authentication Controller" as Controller
+database MongoDB as DB
+
+User -> Client: Enter name, telephone, email, password
+Client -> API: POST /api/v1/auth/register
+API -> Controller: register
+Controller -> DB: Validate and create user\n(hash password)
+alt User created
+    DB --> Controller: Registered user
+    Controller -> Controller: Generate JWT
+    Controller --> API: 200 OK, account and token
+    API --> Client: Registration successful
+    Client --> User: Show account and token
+else Validation or creation fails
+    DB --> Controller: Error
+    Controller --> API: 400 Registration failed
+    API --> Client: Error response
+    Client --> User: Show error
+end
+@enduml

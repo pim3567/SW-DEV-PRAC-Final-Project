@@ -1,38 +1,40 @@
 @startuml
-title Admin Deletes Any Reservation
-autonumber
-actor Admin
-participant "Postman / API Client" as Client
-participant "Massage Reservation API" as API
-participant "Authentication Middleware" as Auth
-participant "Reservation Controller" as Controller
-database MongoDB as DB
+header Massage Reservation Sequence Diagram
+footer Page %page% of %lastpage%
+skinparam maxMessageSize 320
+title "Admin Deletes Any Reservation (DELETE)"
 
-Admin -> Client: Delete a reservation
-Client -> API: DELETE /api/v1/reservations/{id}\n(Admin Bearer token)
-API -> Auth: Verify token and load user
-Auth -> DB: Find user and check token version
-DB --> Auth: Admin account
-alt Token is valid
-    Auth --> API: Authenticated admin
-    API -> Controller: deleteReservation
-    Controller -> DB: Find reservation by id
-    DB --> Controller: Reservation
-    alt Reservation exists
-        Controller -> Controller: Check admin role
-        Controller -> DB: Delete reservation
-        DB --> Controller: Deleted reservation
-        Controller --> API: 200 OK
-        API --> Client: Deleted reservation
-        Client --> Admin: Show confirmation
-    else Invalid id or missing reservation
-        Controller --> API: 400 or 404
-        API --> Client: Error response
-        Client --> Admin: Show error
-    end
-else Token is invalid or expired
-    Auth --> API: 401 Unauthorized
-    API --> Client: Error response
-    Client --> Admin: Show error
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:reservations" as router
+participant "<<controllers>>\n:reservation" as controller
+participant "<<model>>\n:Reservation" as model
+database "<<MongoDB>>\n:reservations" as db
+
+client -> server ++: req.delete('/api/v1/reservations/{id}')
+server -> router ++: app.use('/api/v1/reservations', reservations)
+ref over client, router
+    Precondition: valid Bearer token; protect() has authenticated req.user.
+end ref
+router -> controller ++: deleteReservation()
+note over client
+    Precondition: requester is an admin.
+end note
+controller -> model ++: Reservation.findById(req.params.id)
+model -> db ++: Find reservation by ID
+db --> model --: reservation or null
+model --> controller --: reservation or null
+controller -> controller: Check admin role (any owner allowed)
+alt Valid ID, reservation exists, and access allowed
+controller -> model ++: Reservation.findOneAndDelete(filter)
+model -> db ++: Delete reservation regardless of owner
+db --> model --: deleted reservation or not found
+model --> controller --: deleted reservation or not found
+else Invalid ID, missing reservation, or denied access
+    controller -> controller: Prepare deletion error and reason
 end
+controller --> client --: response (success or error)
+deactivate router
+deactivate server
+
 @enduml

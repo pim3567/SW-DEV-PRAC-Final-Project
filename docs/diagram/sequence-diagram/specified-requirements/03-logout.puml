@@ -1,36 +1,33 @@
 @startuml
-title Log Out
-autonumber
-actor "Registered User / Admin" as User
-participant "Postman / API Client" as Client
-participant "Massage Reservation API" as API
-participant "Authentication Middleware" as Auth
-participant "Authentication Controller" as Controller
-database MongoDB as DB
+header Massage Reservation Sequence Diagram
+footer Page %page% of %lastpage%
+skinparam maxMessageSize 320
+title "Log Out (GET)"
 
-User -> Client: Log out
-Client -> API: GET /api/v1/auth/logout\n(Bearer token)
-API -> Auth: Verify token and load user
-Auth -> DB: Find user and check token version
-DB --> Auth: User
-alt Token is valid
-    Auth --> API: Authenticated user
-    API -> Controller: logout
-    Controller -> DB: Increment tokenVersion
-    alt Revocation succeeds
-        DB --> Controller: User updated
-        Controller --> API: 200 OK and clear cookie
-        API --> Client: Logout successful
-        Client --> User: Clear local token
-    else Revocation fails
-        DB --> Controller: Error or missing user
-        Controller --> API: 500 or 401
-        API --> Client: Error response
-        Client --> User: Show error
-    end
-else Token is invalid or expired
-    Auth --> API: 401 Unauthorized
-    API --> Client: Error response
-    Client --> User: Show error
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:auth" as router
+participant "<<controllers>>\n:auth" as controller
+participant "<<model>>\n:User" as model
+database "<<MongoDB>>\n:users" as db
+
+client -> server ++: req.get('/api/v1/auth/logout')
+server -> router ++: app.use('/api/v1/auth', auth)
+ref over client, router
+    Precondition: valid Bearer token; protect() has authenticated req.user.
+end ref
+router -> controller ++: logout()
+controller -> model ++: User.updateOne({_id: req.user.id}, {$inc: {tokenVersion: 1}})
+model -> db ++: Revoke existing sessions on all devices
+db --> model --: update result
+model --> controller --: update result
+alt User session revocation succeeds
+    controller -> controller: Clear token cookie; prepare success (200)
+else User missing or database failure
+    controller -> controller: Prepare logout error
 end
+controller --> client --: response (success or error)
+deactivate router
+deactivate server
+
 @enduml

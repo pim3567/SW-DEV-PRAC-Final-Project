@@ -1,29 +1,29 @@
 @startuml
-title View Own Reservations
-autonumber
-actor "Registered User" as User
-participant "Postman / API Client" as Client
-participant "Massage Reservation API" as API
-participant "Authentication Middleware" as Auth
-participant "Reservation Controller" as Controller
-database MongoDB as DB
+header Massage Reservation Sequence Diagram
+footer Page %page% of %lastpage%
+skinparam maxMessageSize 320
+title "View Own Reservations (GET)"
 
-User -> Client: Request my reservations
-Client -> API: GET /api/v1/reservations\n(Bearer token)
-API -> Auth: Verify token and load user
-Auth -> DB: Find user and check token version
-DB --> Auth: User
-alt Token is valid
-    Auth --> API: Authenticated user
-    API -> Controller: getMyReservations
-    Controller -> DB: Find reservations for current user
-    DB --> Controller: User's reservations
-    Controller --> API: 200 OK and reservation list
-    API --> Client: Reservation list
-    Client --> User: Display reservations
-else Token is invalid or expired
-    Auth --> API: 401 Unauthorized
-    API --> Client: Error response
-    Client --> User: Show error
-end
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:reservations" as router
+participant "<<controllers>>\n:reservation" as controller
+participant "<<model>>\n:Reservation" as model
+database "<<MongoDB>>\n:reservations" as db
+
+client -> server ++: req.get('/api/v1/reservations')
+server -> router ++: app.use('/api/v1/reservations', reservations)
+ref over client, router
+    Precondition: valid Bearer token; protect() has authenticated req.user.
+end ref
+router -> controller ++: getMyReservations()
+controller -> model ++: Reservation.find({userId: req.user.id}).populate(...).sort(...)
+model -> db ++: Find only current user's reservations
+db --> model --: own reservations (may be empty)
+model --> controller --: own reservations (may be empty)
+controller -> controller: Prepare own reservation list (200)
+controller --> client --: response (success or error)
+deactivate router
+deactivate server
+
 @enduml

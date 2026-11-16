@@ -1,28 +1,32 @@
 @startuml
-title View Massage Shop List
-autonumber
-actor "Registered User" as User
-participant "Postman / API Client" as Client
-participant "Massage Reservation API" as API
-participant "Shop Controller" as Controller
-database MongoDB as DB
+header Massage Reservation Sequence Diagram
+footer Page %page% of %lastpage%
+skinparam maxMessageSize 320
+title "View Massage Shops (GET)"
 
-User -> Client: Request massage shop list
-Client -> API: GET /api/v1/shops
-API -> Controller: getShops
-Controller -> DB: Find and sort shops
-alt Query succeeds
-    DB --> Controller: Shop information
-    Controller --> API: 200 OK with shop list
-    API --> Client: Names, addresses, telephone numbers,\nopening and closing times
-    Client --> User: Display shops
-else Database error
-    DB --> Controller: Error
-    Controller --> API: 500 Unable to retrieve shops
-    API --> Client: Error response
-    Client --> User: Show error
-end
-note over API
-    Shop listing is public in the current implementation.
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:shops" as router
+participant "<<controllers>>\n:shops" as controller
+participant "<<model>>\n:MassageShop" as model
+database "<<MongoDB>>\n:massageshops" as db
+
+client -> server ++: req.get('/api/v1/shops')
+server -> router ++: app.use('/api/v1/shops', shops)
+router -> controller ++: getShops()
+note over client, router
+    Public endpoint: authentication is not required.
 end note
+note over model
+    Massage is the local alias of the MassageShop model.
+end note
+controller -> model ++: Massage.find().sort({name: 1})
+model -> db ++: Find shops ordered by name
+db --> model --: shops (may be empty)
+model --> controller --: shops (may be empty)
+controller -> controller: Prepare shop list with name, address, tel,\nopeningTime, and closingTime
+controller --> client --: response (success or error)
+deactivate router
+deactivate server
+
 @enduml

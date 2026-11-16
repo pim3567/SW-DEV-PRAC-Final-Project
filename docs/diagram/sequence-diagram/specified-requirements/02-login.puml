@@ -1,25 +1,41 @@
 @startuml
-title Log In
-autonumber
-actor "Registered User / Admin" as User
-participant "Postman / API Client" as Client
-participant "Massage Reservation API" as API
-participant "Authentication Controller" as Controller
-database MongoDB as DB
+header Massage Reservation Sequence Diagram
+footer Page %page% of %lastpage%
+skinparam maxMessageSize 320
+title "Log In (POST)"
 
-User -> Client: Enter email and password
-Client -> API: POST /api/v1/auth/login
-API -> Controller: login
-Controller -> DB: Find user by email
-DB --> Controller: User and password hash, or no user
-alt Credentials are valid
-    Controller -> Controller: Verify password and generate JWT
-    Controller --> API: 200 OK, account and token
-    API --> Client: Login successful
-    Client --> User: Store token
-else Missing or invalid credentials
-    Controller --> API: 400 or 401
-    API --> Client: Error response
-    Client --> User: Show error
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:auth" as router
+participant "<<controllers>>\n:auth" as controller
+participant "<<model>>\n:User" as model
+database "<<MongoDB>>\n:users" as db
+
+client -> server ++: req.post('/api/v1/auth/login')
+server -> router ++: app.use('/api/v1/auth', auth)
+router -> controller ++: login()
+note over client
+    Registered users and admins use the same login endpoint.
+end note
+opt Email and password are provided
+controller -> model ++: User.findOne({email}).select('+password')
+model -> db ++: Find user by email
+db --> model --: user or null
+model --> controller --: user or null
+    opt User exists
+        controller -> model ++: user.matchPassword(password)
+        model --> controller --: isMatch
+    end
 end
+alt Credentials are valid
+    controller -> model ++: user.getSignedJwtToken()
+    model --> controller --: token
+    controller -> controller: sendTokenResponse(user, 200, res)
+else Missing or invalid credentials
+    controller -> controller: Prepare login error (400 / 401)
+end
+controller --> client --: response (success or error)
+deactivate router
+deactivate server
+
 @enduml

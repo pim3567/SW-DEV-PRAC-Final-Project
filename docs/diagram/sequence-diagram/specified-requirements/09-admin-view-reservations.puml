@@ -1,34 +1,33 @@
 @startuml
-title Admin Views Reservations
-autonumber
-actor Admin
-participant "Postman / API Client" as Client
-participant "Massage Reservation API" as API
-participant "Authentication Middleware" as Auth
-participant "Reservation Controller" as Controller
-database MongoDB as DB
+header Massage Reservation Sequence Diagram
+footer Page %page% of %lastpage%
+skinparam maxMessageSize 320
+title "Admin Views All Reservations (GET)"
 
-Admin -> Client: Request all reservations
-Client -> API: GET /api/v1/reservations\n(Admin Bearer token)
-API -> Auth: Verify token and load user
-Auth -> DB: Find user and check token version
-DB --> Auth: Admin account
-alt Token is valid
-    Auth --> API: Authenticated admin
-    API -> Controller: getMyReservations
-    Controller -> Controller: Check user's admin role
-    Controller -> DB: Find all reservations
-    DB --> Controller: Reservation list
-    Controller --> API: 200 OK
-    API --> Client: All reservations
-    Client --> Admin: Display reservations
-else Token is invalid or expired
-    Auth --> API: 401 Unauthorized
-    API --> Client: Error response
-    Client --> Admin: Show error
-end
-note over Controller
-    A non-admin receives only their own reservations.
-    Admins can also retrieve a specific reservation by id.
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:reservations" as router
+participant "<<controllers>>\n:reservation" as controller
+participant "<<model>>\n:Reservation" as model
+database "<<MongoDB>>\n:reservations" as db
+
+client -> server ++: req.get('/api/v1/reservations')
+server -> router ++: app.use('/api/v1/reservations', reservations)
+ref over client, router
+    Precondition: valid Bearer token; protect() has authenticated req.user.
+end ref
+router -> controller ++: getMyReservations()
+note over client
+    Precondition: requester is an admin.
 end note
+controller -> controller: req.user.role === 'admin': use filter = {}
+controller -> model ++: Reservation.find({}).populate(...).sort(...)
+model -> db ++: Find all reservations regardless of owner
+db --> model --: all reservations (may be empty)
+model --> controller --: all reservations (may be empty)
+controller -> controller: Prepare all reservation list (200)
+controller --> client --: response (success or error)
+deactivate router
+deactivate server
+
 @enduml

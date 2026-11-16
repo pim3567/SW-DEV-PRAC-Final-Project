@@ -1,42 +1,46 @@
 @startuml
-title Edit Own Reservation
-autonumber
-actor "Registered User" as User
-participant "Postman / API Client" as Client
-participant "Massage Reservation API" as API
-participant "Authentication Middleware" as Auth
-participant "Reservation Controller" as Controller
-database MongoDB as DB
+header Massage Reservation Sequence Diagram
+footer Page %page% of %lastpage%
+skinparam maxMessageSize 320
+title "Edit Own Reservation (PUT)"
 
-User -> Client: Edit reservation shop, date, or time
-Client -> API: PUT /api/v1/reservations/{id}\n(Bearer token, updated fields)
-API -> Auth: Verify token and load user
-Auth -> DB: Find user and check token version
-DB --> Auth: User
-alt Token is valid
-    Auth --> API: Authenticated user
-    API -> Controller: updateReservation
-    Controller -> DB: Find reservation by id
-    DB --> Controller: Reservation
-    Controller -> Controller: Check ownership, confirmed status,\nand updated fields
-    opt Reservation and updated fields pass initial checks
-        Controller -> DB: Check shop and closing date
-        DB --> Controller: Shop and closing-date information
-    end
-    alt Owner and update is valid
-        Controller -> DB: Update confirmed reservation for owner
-        DB --> Controller: Updated reservation
-        Controller --> API: 200 OK
-        API --> Client: Updated reservation
-        Client --> User: Show update
-    else Missing, unauthorized, or invalid update
-        Controller --> API: 400, 403, 404, or 409
-        API --> Client: Error response
-        Client --> User: Show error
-    end
-else Token is invalid or expired
-    Auth --> API: 401 Unauthorized
-    API --> Client: Error response
-    Client --> User: Show error
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:reservations" as router
+participant "<<controllers>>\n:reservation" as controller
+participant "<<model>>\n:Reservation" as model
+database "<<MongoDB>>\n:reservations" as db
+participant "<<model>>\n:MassageShop / SpecialClosingDate" as shopModels
+database "<<MongoDB>>\n:massageshops / specialclosingdates" as shopDb
+
+client -> server ++: req.put('/api/v1/reservations/{id}')
+server -> router ++: app.use('/api/v1/reservations', reservations)
+ref over client, router
+    Precondition: valid Bearer token; protect() has authenticated req.user.
+end ref
+router -> controller ++: updateReservation()
+controller -> model ++: Reservation.findById(req.params.id)
+model -> db ++: Find reservation by ID
+db --> model --: reservation or null
+model --> controller --: reservation or null
+controller -> controller: Check ownership, confirmed status, and updated fields
+opt Reservation exists, access allowed, and initial checks pass
+controller -> shopModels ++: MassageShop.findById(shopId); SpecialClosingDate.exists({shopId, date})
+shopModels -> shopDb ++: Read selected shop and special closing date
+shopDb --> shopModels --: shop and closing-date information
+shopModels --> controller --: shop and closing-date information
+    controller -> controller: Require future booking time within operating hours;\nreject special closing date
 end
+alt All validation and access checks pass
+controller -> model ++: Reservation.findOneAndUpdate(filter, {$set: updates}, options)
+model -> db ++: Update confirmed reservation belonging to current user
+db --> model --: updated reservation or conflict
+model --> controller --: updated reservation or conflict
+else Invalid ID, missing reservation, denied access, or invalid update
+    controller -> controller: Prepare update error and reason
+end
+controller --> client --: response (success or error)
+deactivate router
+deactivate server
+
 @enduml

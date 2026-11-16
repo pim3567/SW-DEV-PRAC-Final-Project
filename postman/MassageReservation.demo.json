@@ -1,0 +1,1128 @@
+{
+  "info": {
+    "name": "MassageReservation - Presentation Demo",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Presentation steps 1-12 with registration validation, booking conditions, user CRUD, logout invalidation, and admin CRUD of another user booking. Requires an existing admin and a shop open on the generated date (seven days ahead). Creates a new demo user each run; successful runs delete their three demo bookings. Run on a demo database. Password reset, ratings, closing dates and shop management remain in MassageReservation.json."
+  },
+  "variable": [
+    {
+      "key": "URL",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin01@gmail.com",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
+      "value": "12345678",
+      "type": "string"
+    },
+    {
+      "key": "demoPassword",
+      "value": "NewmanDemo123!",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Register a new user",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Newman Demo User\",\n  \"tel\": \"0898765432\",\n  \"email\": \"{{demoEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('demoEmail', 'newman.' + pm.variables.replaceIn('{{$guid}}') + '@example.com');",
+              "pm.collectionVariables.set('demoDate', new Date(Date.now() + 7 * 86400000 + 7 * 3600000).toISOString().slice(0, 10));",
+              "['demoUserId','demoUserToken','demoAdminToken','demoShopId','demoBookingId','demoAdminBookingId','demoLimitBookingId'].forEach(function (key) { pm.collectionVariables.unset(key); });"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+              "pm.test('Registration creates a user and returns an ID', function () {",
+              "  const b = pm.response.json(); pm.expect(b.role).to.eql('user');",
+              "  pm.expect(b._id).to.be.a('string').and.not.empty; pm.collectionVariables.set('demoUserId', b._id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "01a - Reject duplicate email",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Newman Demo User\",\n  \"tel\": \"0898765432\",\n  \"email\": \"{{demoEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+              "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().message).to.include(\"duplicate key\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "01b - Reject invalid email",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Newman Demo User\",\n  \"tel\": \"0898765432\",\n  \"email\": \"invalid-email\",\n  \"password\": \"{{demoPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+              "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().message).to.include(\"Please add a valid email\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "01c - Reject short password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Newman Demo User\",\n  \"tel\": \"0898765432\",\n  \"email\": \"{{demoEmail}}\",\n  \"password\": \"123\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+              "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().message).to.include(\"password\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "01d - Reject missing name",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tel\": \"0898765432\",\n  \"email\": \"{{demoEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+              "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().message).to.include(\"Please add a name\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - User login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{demoEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+              "pm.test('User login returns a token', function () { const b = pm.response.json(); pm.expect(b.role).to.eql('user'); pm.expect(b.token).to.be.a('string').and.not.empty; pm.collectionVariables.set('demoUserToken', b.token); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - View shops and select a shop",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{URL}}/api/v1/shops",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+              "pm.test('A shop has time for creation and rescheduling', function () {",
+              "  const shops = pm.response.json().data; pm.expect(shops).to.be.an('array').and.not.empty;",
+              "  const minutes = function (time) { const p = time.split(':').map(Number); return p[0] * 60 + p[1]; };",
+              "  const shop = shops.find(function (s) { return minutes(s.closingTime) - minutes(s.openingTime) >= 2; });",
+              "  pm.expect(shop, 'Need an existing shop open for at least two minutes').to.be.an('object');",
+              "  pm.collectionVariables.set('demoShopId', shop._id); pm.collectionVariables.set('demoStartTime', shop.openingTime);",
+              "  pm.collectionVariables.set('demoOutsideTime', shop.closingTime);",
+              "  const next = minutes(shop.openingTime) + 1; pm.collectionVariables.set('demoUpdatedTime', String(Math.floor(next / 60)).padStart(2, '0') + ':' + String(next % 60).padStart(2, '0'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - User creates booking A",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/reservations",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shopId\": \"{{demoShopId}}\",\n  \"reservationDate\": \"{{demoDate}}\",\n  \"startTime\": \"{{demoStartTime}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+              "pm.test('Save confirmed booking owned by the demo user', function () {",
+              "  const b = pm.response.json().data; pm.expect(b.status).to.eql('confirmed'); pm.expect(b.userId).to.eql(pm.collectionVariables.get('demoUserId'));",
+              "  pm.expect(b._id).to.be.a('string').and.not.empty; pm.collectionVariables.set('demoBookingId', b._id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04a - Reject a past booking",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/reservations",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shopId\": \"{{demoShopId}}\",\n  \"reservationDate\": \"2000-01-01\",\n  \"startTime\": \"{{demoStartTime}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+              "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.include(\"must be in the future\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04b - Reject invalid time",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/reservations",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shopId\": \"{{demoShopId}}\",\n  \"reservationDate\": \"{{demoDate}}\",\n  \"startTime\": \"25:00\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+              "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.include(\"Invalid time format\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04c - Reject booking at closing time",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/reservations",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shopId\": \"{{demoShopId}}\",\n  \"reservationDate\": \"{{demoDate}}\",\n  \"startTime\": \"{{demoOutsideTime}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+              "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.include(\"shop's operating hours\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04d - User creates booking B for admin demonstration",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/reservations",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shopId\": \"{{demoShopId}}\",\n  \"reservationDate\": \"{{demoDate}}\",\n  \"startTime\": \"{{demoStartTime}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+              "pm.test('Save confirmed booking owned by the demo user', function () {",
+              "  const b = pm.response.json().data; pm.expect(b.status).to.eql('confirmed'); pm.expect(b.userId).to.eql(pm.collectionVariables.get('demoUserId'));",
+              "  pm.expect(b._id).to.be.a('string').and.not.empty; pm.collectionVariables.set('demoAdminBookingId', b._id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04e - User creates booking C to reach the limit",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/reservations",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shopId\": \"{{demoShopId}}\",\n  \"reservationDate\": \"{{demoDate}}\",\n  \"startTime\": \"{{demoStartTime}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+              "pm.test('Save confirmed booking owned by the demo user', function () {",
+              "  const b = pm.response.json().data; pm.expect(b.status).to.eql('confirmed'); pm.expect(b.userId).to.eql(pm.collectionVariables.get('demoUserId'));",
+              "  pm.expect(b._id).to.be.a('string').and.not.empty; pm.collectionVariables.set('demoLimitBookingId', b._id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04f - Reject fourth confirmed booking",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/reservations",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shopId\": \"{{demoShopId}}\",\n  \"reservationDate\": \"{{demoDate}}\",\n  \"startTime\": \"{{demoStartTime}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+              "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.include(\"at most 3 active reservations\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04g - Remove demo booking C",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{URL}}/api/v1/reservations/{{demoLimitBookingId}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - User views own bookings",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{URL}}/api/v1/reservations",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+              "pm.test('List contains A and B and only the current user bookings', function () {",
+              "  const rows = pm.response.json().data; const ids = rows.map(function (r) { return r._id; });",
+              "  pm.expect(ids).to.include(pm.collectionVariables.get('demoBookingId')); pm.expect(ids).to.include(pm.collectionVariables.get('demoAdminBookingId'));",
+              "  rows.forEach(function (r) { pm.expect(r.userId._id).to.eql(pm.collectionVariables.get('demoUserId')); });",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - User updates booking A",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/reservations/{{demoBookingId}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"startTime\": \"{{demoUpdatedTime}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+              "pm.test('Updated time is returned', function () { pm.expect(pm.response.json().data.startTime).to.eql(pm.collectionVariables.get('demoUpdatedTime')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06a - Read back the updated booking A",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{URL}}/api/v1/reservations/{{demoBookingId}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+              "pm.test('Updated time is returned', function () { pm.expect(pm.response.json().data.startTime).to.eql(pm.collectionVariables.get('demoUpdatedTime')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - User deletes booking A",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{URL}}/api/v1/reservations/{{demoBookingId}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07a - Deleted booking A is absent",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{URL}}/api/v1/reservations/{{demoBookingId}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 404', function () { pm.response.to.have.status(404); });",
+              "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+              "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.include(\"Reservation not found\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Admin login with an existing account",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+              "pm.test('Existing account has admin permissions', function () { const b = pm.response.json(); pm.expect(b.role).to.eql('admin'); pm.expect(b.token).to.be.a('string').and.not.empty; pm.collectionVariables.set('demoAdminToken', b.token); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Admin views all bookings",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{URL}}/api/v1/reservations",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoAdminToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+              "pm.test('Admin can see booking B owned by the demo user', function () { const row = pm.response.json().data.find(function (r) { return r._id === pm.collectionVariables.get('demoAdminBookingId'); }); pm.expect(row).to.be.an('object'); pm.expect(row.userId._id).to.eql(pm.collectionVariables.get('demoUserId')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Admin updates user booking B",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{URL}}/api/v1/reservations/{{demoAdminBookingId}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoAdminToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"startTime\": \"{{demoUpdatedTime}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+              "pm.test('Updated time is returned', function () { pm.expect(pm.response.json().data.startTime).to.eql(pm.collectionVariables.get('demoUpdatedTime')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11a - Admin reads back updated booking B",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{URL}}/api/v1/reservations/{{demoAdminBookingId}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoAdminToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+              "pm.test('Updated time is returned', function () { pm.expect(pm.response.json().data.startTime).to.eql(pm.collectionVariables.get('demoUpdatedTime')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - Admin deletes user booking B",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{URL}}/api/v1/reservations/{{demoAdminBookingId}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoAdminToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12a - Deleted booking B is absent",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{URL}}/api/v1/reservations/{{demoAdminBookingId}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoAdminToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 404', function () { pm.response.to.have.status(404); });",
+              "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+              "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.include(\"Reservation not found\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Final - User logs out",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{URL}}/api/v1/auth/logout",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Final - Old user token is rejected",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{URL}}/api/v1/auth/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoUserToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 401', function () { pm.response.to.have.status(401); });",
+              "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+              "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().message).to.include(\"Session expired\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cleanup - Admin logout",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{URL}}/api/v1/auth/logout",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{demoAdminToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

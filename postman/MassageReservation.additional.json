@@ -1,0 +1,2414 @@
+{
+  "info": {
+    "name": "MassageReservation - Additional Requirements",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Single-file Postman Collection v2.1. Start the normal API with npm run dev, then run: npx newman run ./postman/MassageReservation.additional.json\n\nRequirement mapping: AR01 create shop, AR02 edit shop, AR03 completed-booking ratings 1-5, AR04 optional real-email OTP reset, AR05 admin booking email (manual inbox check), AR06 welcome unique coupon (manual inbox/database check), AR07-10 special closing date CRUD.\n\nDefault run: automatic API checks; AR05/06 email assertions show SKIPPED, and the OTP success folder is not sent without explicit credentials/code. A green default run does not prove all 10 requirements.\n\nTo receive the first welcome email use --env-var customerEmail=YOUR_REAL_UNUSED_EMAIL. The collection creates that user, so choose a fresh demo address.\n\nRequest real OTP: npx newman run ./postman/MassageReservation.additional.json --folder \"02 - Request password reset OTP\" --env-var resetEmail=YOUR_EXISTING_EMAIL\n\nWithin 5 minutes, verify/reset: npx newman run ./postman/MassageReservation.additional.json --folder \"03 - Verify OTP and reset password\" --folder \"04 - Final logout\" --env-var resetEmail=YOUR_EXISTING_EMAIL --env-var resetPassword=YOUR_CURRENT_PASSWORD --env-var resetOtp=SIX_DIGITS\n\nFor a standalone reset run, final logout requests without tokens are skipped. resetNewPassword defaults to NewmanChanged123!; override it for your own demo account. Never use a real non-demo account.\n\nRequires an existing admin and MongoDB replica set/Atlas. Override URL, adminEmail and adminPassword via --env-var. Tests create real users, shops, coupons and ratings and can send real emails. Bookings/closing dates are deleted on successful runs; other created records remain because the API has no delete endpoints for them. Logout invalidates existing sessions.\n\nThe collection-level 3-second assertion checks observed individual request latency, not load/performance guarantees. No helper JS files or test-only endpoints are required."
+  },
+  "variable": [
+    {
+      "key": "URL",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin01@gmail.com",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
+      "value": "12345678",
+      "type": "string"
+    },
+    {
+      "key": "additionalPassword",
+      "value": "NewmanAdditional123!",
+      "type": "string"
+    },
+    {
+      "key": "customerEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resetEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resetOtp",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resetPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resetNewPassword",
+      "value": "NewmanChanged123!",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Additional API",
+      "description": "Automatic API tests for AR01-03 and AR07-10 plus reset validation. AR05 and AR06 email checks are explicitly skipped until checked in a real mailbox.",
+      "item": [
+        {
+          "name": "Setup - Admin login",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId=pm.variables.replaceIn('{{$guid}}');",
+                  "pm.collectionVariables.set('runId',runId);",
+                  "pm.collectionVariables.set('additionalEmail',pm.variables.get('customerEmail') || 'newman.additional.'+runId+'@example.com');",
+                  "pm.collectionVariables.set('additionalSecondEmail','newman.additional.second.'+runId+'@example.com');",
+                  "pm.collectionVariables.set('additionalDate',new Date(Date.now()+14*86400000+7*3600000).toISOString().slice(0,10));",
+                  "pm.collectionVariables.set('additionalNextDate',new Date(Date.now()+15*86400000+7*3600000).toISOString().slice(0,10));",
+                  "['additionalAdminToken','additionalUserToken','additionalSecondToken','additionalShopId','additionalBookingId','additionalSecondBookingId','additionalClosingId','resetLoginToken','additionalResetToken'].forEach(function(key){pm.collectionVariables.unset(key);});",
+                  "console.warn('AR05/AR06: check real admin/welcome emails separately; HTTP success does not verify inbox delivery. Use customerEmail with a real mailbox to receive the first welcome email.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Save additionalAdminToken', function () { const value=pm.response.json().token; pm.expect(value).to.be.a('string').and.not.empty; pm.collectionVariables.set('additionalAdminToken',value); });",
+                  "pm.test('Admin account required', function () { pm.expect(pm.response.json().role).to.eql('admin'); });",
+                  "pm.test('Save additionalAdminEmail', function () { const value=pm.response.json().email; pm.expect(value).to.be.a('string').and.not.empty; pm.collectionVariables.set('additionalAdminEmail',value); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR01 - Admin creates a shop",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/shops",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Newman Additional {{runId}}\",\n  \"address\": \"Newman demo address\",\n  \"tel\": \"0898765432\",\n  \"description\": \"Temporary additional requirements test shop\",\n  \"openingTime\": \"09:00\",\n  \"closingTime\": \"20:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Save additionalShopId', function () { const value=pm.response.json().data._id; pm.expect(value).to.be.a('string').and.not.empty; pm.collectionVariables.set('additionalShopId',value); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR02 - Admin edits the shop",
+          "request": {
+            "method": "PUT",
+            "url": "{{URL}}/api/v1/shops/{{additionalShopId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"address\": \"Updated Newman demo address\",\n  \"closingTime\": \"21:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Shop address updated', function () { pm.expect(pm.response.json().data.address).to.eql('Updated Newman demo address'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR02 - Read back the edited shop",
+          "request": {
+            "method": "GET",
+            "url": "{{URL}}/api/v1/shops",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Shop changes are persisted', function () { const s=pm.response.json().data.find(s=>s._id===pm.collectionVariables.get('additionalShopId')); pm.expect(s.address).to.eql('Updated Newman demo address'); pm.expect(s.closingTime).to.eql('21:00'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR06 - Register first user and trigger welcome coupon",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Newman Additional User\",\n  \"tel\": \"0898765432\",\n  \"email\": \"{{additionalEmail}}\",\n  \"password\": \"{{additionalPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Save additionalUserId', function () { const value=pm.response.json()._id; pm.expect(value).to.be.a('string').and.not.empty; pm.collectionVariables.set('additionalUserId',value); });",
+                  "pm.test('Save additionalUserToken', function () { const value=pm.response.json().token; pm.expect(value).to.be.a('string').and.not.empty; pm.collectionVariables.set('additionalUserToken',value); });",
+                  "pm.test.skip('AR06 - Welcome email and unique coupon must be checked in the mailbox', function () {});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR06 - Register second user for coupon uniqueness",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Newman Additional User\",\n  \"tel\": \"0898765432\",\n  \"email\": \"{{additionalSecondEmail}}\",\n  \"password\": \"{{additionalPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Save additionalSecondToken', function () { const value=pm.response.json().token; pm.expect(value).to.be.a('string').and.not.empty; pm.collectionVariables.set('additionalSecondToken',value); });",
+                  "pm.test.skip('AR06 - Second coupon uniqueness requires email or database evidence', function () {});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR01 - User cannot create a shop",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/shops",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Newman Additional {{runId}}\",\n  \"address\": \"Newman demo address\",\n  \"tel\": \"0898765432\",\n  \"description\": \"Temporary additional requirements test shop\",\n  \"openingTime\": \"09:00\",\n  \"closingTime\": \"20:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR02 - User cannot edit a shop",
+          "request": {
+            "method": "PUT",
+            "url": "{{URL}}/api/v1/shops/{{additionalShopId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"address\": \"Unauthorized edit\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR07 - Admin creates a special closing date",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/shops/{{additionalShopId}}/closing-dates",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{additionalDate}}\",\n  \"reason\": \"Newman scheduled maintenance\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Save additionalClosingId', function () { const value=pm.response.json().data._id; pm.expect(value).to.be.a('string').and.not.empty; pm.collectionVariables.set('additionalClosingId',value); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR07 - Reject duplicate closing date",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/shops/{{additionalShopId}}/closing-dates",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{additionalDate}}\",\n  \"reason\": \"Newman scheduled maintenance\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.eql(\"This shop already has a closing date on that day\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR07 - Reject invalid calendar date",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/shops/{{additionalShopId}}/closing-dates",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2027-02-30\",\n  \"reason\": \"Newman scheduled maintenance\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.eql(\"Invalid date. Please use a real date in YYYY-MM-DD format.\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR08 - Admin lists special closing dates",
+          "request": {
+            "method": "GET",
+            "url": "{{URL}}/api/v1/shops/{{additionalShopId}}/closing-dates",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Created closing date appears in the list', function () { const row=pm.response.json().data.find(r=>r._id===pm.collectionVariables.get('additionalClosingId')); pm.expect(row.date).to.eql(pm.collectionVariables.get('additionalDate')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR07 - User cannot create closing dates",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/shops/{{additionalShopId}}/closing-dates",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{additionalDate}}\",\n  \"reason\": \"Newman scheduled maintenance\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR08 - User cannot list closing dates",
+          "request": {
+            "method": "GET",
+            "url": "{{URL}}/api/v1/shops/{{additionalShopId}}/closing-dates",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR07 - Reject booking on the special closing date",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/reservations",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopId\": \"{{additionalShopId}}\",\n  \"reservationDate\": \"{{additionalDate}}\",\n  \"startTime\": \"10:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.eql(\"The shop is closed on the selected date\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR09 - Admin updates the closing date",
+          "request": {
+            "method": "PUT",
+            "url": "{{URL}}/api/v1/closing-dates/{{additionalClosingId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{additionalNextDate}}\",\n  \"reason\": \"Updated maintenance date\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Closing date moved', function () { pm.expect(pm.response.json().data.date).to.eql(pm.collectionVariables.get('additionalNextDate')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR09 - Read back updated closing date",
+          "request": {
+            "method": "GET",
+            "url": "{{URL}}/api/v1/shops/{{additionalShopId}}/closing-dates",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Updated closing date persisted', function () { const row=pm.response.json().data.find(r=>r._id===pm.collectionVariables.get('additionalClosingId')); pm.expect(row.date).to.eql(pm.collectionVariables.get('additionalNextDate')); pm.expect(row.reason).to.eql('Updated maintenance date'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR09 - User cannot update a closing date",
+          "request": {
+            "method": "PUT",
+            "url": "{{URL}}/api/v1/closing-dates/{{additionalClosingId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Unauthorized\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR10 - User cannot delete a closing date",
+          "request": {
+            "method": "DELETE",
+            "url": "{{URL}}/api/v1/closing-dates/{{additionalClosingId}}",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR10 - Admin deletes the closing date",
+          "request": {
+            "method": "DELETE",
+            "url": "{{URL}}/api/v1/closing-dates/{{additionalClosingId}}",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR10 - Deleted closing date is absent",
+          "request": {
+            "method": "GET",
+            "url": "{{URL}}/api/v1/shops/{{additionalShopId}}/closing-dates",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Deleted date is no longer listed', function () { pm.expect(pm.response.json().data.map(r=>r._id)).to.not.include(pm.collectionVariables.get('additionalClosingId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR05 - Customer creates a reservation",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/reservations",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopId\": \"{{additionalShopId}}\",\n  \"reservationDate\": \"{{additionalDate}}\",\n  \"startTime\": \"10:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Save additionalBookingId', function () { const value=pm.response.json().data._id; pm.expect(value).to.be.a('string').and.not.empty; pm.collectionVariables.set('additionalBookingId',value); });",
+                  "pm.test.skip('AR05 - Admin notification delivery and content require mailbox evidence', function () {});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR03 - Reject rating before completion",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/reservations/{{additionalBookingId}}/rating",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.eql(\"You can only rate a reservation after it has been completed\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR03 - Complete the reservation",
+          "request": {
+            "method": "PATCH",
+            "url": "{{URL}}/api/v1/reservations/{{additionalBookingId}}/status",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Booking completed', function () { pm.expect(pm.response.json().data.status).to.eql('completed'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR03 - Another user cannot rate this reservation",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/reservations/{{additionalBookingId}}/rating",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalSecondToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404', function () { pm.response.to.have.status(404); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.eql(\"Reservation not found\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR03 - Reject invalid rating 0",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/reservations/{{additionalBookingId}}/rating",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.eql(\"Rating must be an integer from 1 to 5\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR03 - Reject invalid rating 6",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/reservations/{{additionalBookingId}}/rating",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 6\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.eql(\"Rating must be an integer from 1 to 5\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR03 - Reject invalid rating 2.5",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/reservations/{{additionalBookingId}}/rating",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 2.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.eql(\"Rating must be an integer from 1 to 5\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR03 - Reject invalid rating \"5\"",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/reservations/{{additionalBookingId}}/rating",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": \"5\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.eql(\"Rating must be an integer from 1 to 5\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR03 - Accept one star after completion",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/reservations/{{additionalBookingId}}/rating",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 1,\n  \"comment\": \"Newman lower boundary\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Save additionalRatingId', function () { const value=pm.response.json().data._id; pm.expect(value).to.be.a('string').and.not.empty; pm.collectionVariables.set('additionalRatingId',value); });",
+                  "pm.test('One-star rating saved', function () { pm.expect(pm.response.json().data.rating).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR03 - Reject duplicate rating",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/reservations/{{additionalBookingId}}/rating",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Expected rejection reason', function () { pm.expect(pm.response.json().error).to.eql(\"This reservation has already been rated\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR03 - Create another booking for five-star boundary",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/reservations",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopId\": \"{{additionalShopId}}\",\n  \"reservationDate\": \"{{additionalDate}}\",\n  \"startTime\": \"10:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Save additionalSecondBookingId', function () { const value=pm.response.json().data._id; pm.expect(value).to.be.a('string').and.not.empty; pm.collectionVariables.set('additionalSecondBookingId',value); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR03 - Complete second booking",
+          "request": {
+            "method": "PATCH",
+            "url": "{{URL}}/api/v1/reservations/{{additionalSecondBookingId}}/status",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR03 - Accept five stars after completion",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/reservations/{{additionalSecondBookingId}}/rating",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Newman upper boundary\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Five-star rating saved', function () { pm.expect(pm.response.json().data.rating).to.eql(5); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR03 - View submitted shop ratings",
+          "request": {
+            "method": "GET",
+            "url": "{{URL}}/api/v1/ratings?shopId={{additionalShopId}}",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Both boundary ratings are persisted for this shop', function () { const rows=pm.response.json().data; pm.expect(rows).to.have.lengthOf(2); pm.expect(rows.map(r=>r.rating)).to.have.members([1,5]); rows.forEach(r=>pm.expect(r.shopId._id).to.eql(pm.collectionVariables.get('additionalShopId'))); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR04 - Reject missing reset email",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/forgot-password",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR04 - Reject malformed OTP",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/verify-otp",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{additionalEmail}}\",\n  \"otp\": \"123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR04 - Reject invalid reset token",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/reset-password",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"invalid\",\n  \"password\": \"NewmanChanged123!\",\n  \"confirmPassword\": \"NewmanChanged123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cleanup - Delete first test booking",
+          "request": {
+            "method": "DELETE",
+            "url": "{{URL}}/api/v1/reservations/{{additionalBookingId}}",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cleanup - Delete second test booking",
+          "request": {
+            "method": "DELETE",
+            "url": "{{URL}}/api/v1/reservations/{{additionalSecondBookingId}}",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Request password reset OTP",
+      "description": "Run separately with resetEmail set to an existing account with an accessible mailbox. If resetOtp is already supplied, no new OTP is requested.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.variables.get('resetEmail') || !!pm.variables.get('resetOtp')) { console.warn(\"OTP request skipped: supply resetEmail without resetOtp to request a new code.\"); pm.execution.skipRequest(); }"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "AR04 - Request password reset OTP",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/forgot-password",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{resetEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('OTP is not exposed in the API response', function () { pm.expect(pm.response.json()).to.not.have.property('otp'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Verify OTP and reset password",
+      "description": "Opt in with resetEmail, resetPassword (current password), and resetOtp from the real email. This changes that account password to resetNewPassword.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.variables.get('resetEmail') || !pm.variables.get('resetOtp') || !pm.variables.get('resetPassword')) { console.warn(\"OTP success flow skipped: resetEmail, resetPassword and a real resetOtp are required.\"); pm.execution.skipRequest(); }"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "AR04 - Login reset account before changing its password",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{resetEmail}}\",\n  \"password\": \"{{resetPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Save reset-account login token', function () { const b=pm.response.json(); pm.expect(b.token).to.be.a('string').and.not.empty; pm.collectionVariables.set('resetLoginToken',b.token); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR04 - Reject incorrect OTP",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/verify-otp",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{resetEmail}}\",\n  \"otp\": \"000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Wrong OTP rejected', function () { pm.expect(pm.response.json().message).to.eql('Invalid or expired OTP'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR04 - Verify correct OTP",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/verify-otp",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{resetEmail}}\",\n  \"otp\": \"{{resetOtp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Save additionalResetToken', function () { const value=pm.response.json().resetToken; pm.expect(value).to.be.a('string').and.not.empty; pm.collectionVariables.set('additionalResetToken',value); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR04 - OTP cannot be reused",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/verify-otp",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{resetEmail}}\",\n  \"otp\": \"{{resetOtp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Consumed OTP rejected', function () { pm.expect(pm.response.json().message).to.eql('Invalid or expired OTP'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR04 - Reject mismatched password confirmation",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/reset-password",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"{{additionalResetToken}}\",\n  \"password\": \"{{resetNewPassword}}\",\n  \"confirmPassword\": \"DifferentPassword123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Password confirmation checked', function () { pm.expect(pm.response.json().message).to.eql('Passwords do not match'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR04 - Reject short new password",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/reset-password",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"{{additionalResetToken}}\",\n  \"password\": \"123\",\n  \"confirmPassword\": \"123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Password length checked', function () { pm.expect(pm.response.json().message).to.eql('Password must contain at least 6 characters and at most 72 UTF-8 bytes'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR04 - Reset password successfully",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/reset-password",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"{{additionalResetToken}}\",\n  \"password\": \"{{resetNewPassword}}\",\n  \"confirmPassword\": \"{{resetNewPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR04 - Pre-reset login token is invalidated",
+          "request": {
+            "method": "GET",
+            "url": "{{URL}}/api/v1/auth/me",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{resetLoginToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR04 - Old password no longer works",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{resetEmail}}\",\n  \"password\": \"{{resetPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR04 - New password works",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{resetEmail}}\",\n  \"password\": \"{{resetNewPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test('Save additionalUserToken', function () { const value=pm.response.json().token; pm.expect(value).to.be.a('string').and.not.empty; pm.collectionVariables.set('resetLoginToken',value); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AR04 - Reset token cannot be reused",
+          "request": {
+            "method": "POST",
+            "url": "{{URL}}/api/v1/auth/reset-password",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"{{additionalResetToken}}\",\n  \"password\": \"{{resetNewPassword}}\",\n  \"confirmPassword\": \"{{resetNewPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });",
+                  "pm.test('Single-use reset token enforced', function () { pm.expect(pm.response.json().message).to.eql('Invalid or expired reset token'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Final logout",
+      "description": "Logout checks run last; admin logout is the final request. For a standalone OTP flow, select this folder as well.",
+      "item": [
+        {
+          "name": "Final - Password-reset account logout",
+          "request": {
+            "method": "GET",
+            "url": "{{URL}}/api/v1/auth/logout",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{resetLoginToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('resetLoginToken')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Final - Second user logout",
+          "request": {
+            "method": "GET",
+            "url": "{{URL}}/api/v1/auth/logout",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalSecondToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('additionalSecondToken')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Final - Second user token is rejected",
+          "request": {
+            "method": "GET",
+            "url": "{{URL}}/api/v1/auth/me",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalSecondToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('additionalSecondToken')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Final - User logout",
+          "request": {
+            "method": "GET",
+            "url": "{{URL}}/api/v1/auth/logout",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('additionalUserToken')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Final - User token is rejected",
+          "request": {
+            "method": "GET",
+            "url": "{{URL}}/api/v1/auth/me",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalUserToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('additionalUserToken')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Response success is false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Final - Admin logout",
+          "request": {
+            "method": "GET",
+            "url": "{{URL}}/api/v1/auth/logout",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{additionalAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('additionalAdminToken')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response success is true', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response time is below 3 seconds (single request)', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });"
+        ]
+      }
+    }
+  ]
+}

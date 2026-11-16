@@ -7,15 +7,22 @@ title "Delete Own Reservation (DELETE)"
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
 participant "<<router>>\n:reservations" as router
+participant "<<middleware>>\n:auth" as auth
 participant "<<controllers>>\n:reservation" as controller
 participant "<<model>>\n:Reservation" as model
 database "<<MongoDB>>\n:reservations" as db
 
 client -> server ++: req.delete('/api/v1/reservations/{id}')
 server -> router ++: app.use('/api/v1/reservations', reservations)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
 router -> controller ++: deleteReservation()
 controller -> model ++: Reservation.findById(req.params.id)
 model -> db ++: Find reservation by ID
@@ -31,6 +38,7 @@ else Invalid ID, missing reservation, or denied access
     controller -> controller: Prepare deletion error and reason
 end
 controller --> client --: response (success or error)
+end
 deactivate router
 deactivate server
 

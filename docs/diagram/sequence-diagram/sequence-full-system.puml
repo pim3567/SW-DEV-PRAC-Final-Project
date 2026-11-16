@@ -7,6 +7,7 @@ title "Full System"
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
 participant "<<router>>\n:routes" as router
+participant "<<middleware>>\n:auth" as auth
 participant "<<controllers>>\n:controllers" as controller
 participant "<<model>>\n:Mongoose models" as model
 database "<<MongoDB>>\n:collections" as db
@@ -74,9 +75,15 @@ deactivate server
 newpage Log Out (GET)
 client -> server ++: req.get('/api/v1/auth/logout')
 server -> router ++: app.use('/api/v1/auth', auth)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
 router -> controller ++: logout()
 controller -> model ++: User.updateOne({_id: req.user.id}, {$inc: {tokenVersion: 1}})
 model -> db ++: Revoke existing sessions on all devices
@@ -88,6 +95,7 @@ else User missing or database failure
     controller -> controller: Prepare logout error
 end
 controller --> client --: response (success or error)
+end
 deactivate router
 deactivate server
 
@@ -113,9 +121,15 @@ deactivate server
 newpage Make a Reservation (POST)
 client -> server ++: req.post('/api/v1/reservations')
 server -> router ++: app.use('/api/v1/reservations', reservations)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
 router -> controller ++: createReservation()
 controller -> controller: Validate shopId, reservationDate, startTime;\nrequire a future booking time
 opt Input and booking time are valid
@@ -149,15 +163,22 @@ else Invalid input, missing shop, or shop closed
     controller -> controller: Prepare booking error and reason
 end
 controller --> client --: response (success or error)
+end
 deactivate router
 deactivate server
 
 newpage View Own Reservations (GET)
 client -> server ++: req.get('/api/v1/reservations')
 server -> router ++: app.use('/api/v1/reservations', reservations)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
 router -> controller ++: getMyReservations()
 controller -> model ++: Reservation.find({userId: req.user.id}).populate(...).sort(...)
 model -> db ++: Find only current user's reservations
@@ -165,15 +186,22 @@ db --> model --: own reservations (may be empty)
 model --> controller --: own reservations (may be empty)
 controller -> controller: Prepare own reservation list (200)
 controller --> client --: response (success or error)
+end
 deactivate router
 deactivate server
 
 newpage Edit Own Reservation (PUT)
 client -> server ++: req.put('/api/v1/reservations/{id}')
 server -> router ++: app.use('/api/v1/reservations', reservations)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
 router -> controller ++: updateReservation()
 controller -> model ++: Reservation.findById(req.params.id)
 model -> db ++: Find reservation by ID
@@ -196,15 +224,22 @@ else Invalid ID, missing reservation, denied access, or invalid update
     controller -> controller: Prepare update error and reason
 end
 controller --> client --: response (success or error)
+end
 deactivate router
 deactivate server
 
 newpage Delete Own Reservation (DELETE)
 client -> server ++: req.delete('/api/v1/reservations/{id}')
 server -> router ++: app.use('/api/v1/reservations', reservations)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
 router -> controller ++: deleteReservation()
 controller -> model ++: Reservation.findById(req.params.id)
 model -> db ++: Find reservation by ID
@@ -220,15 +255,22 @@ else Invalid ID, missing reservation, or denied access
     controller -> controller: Prepare deletion error and reason
 end
 controller --> client --: response (success or error)
+end
 deactivate router
 deactivate server
 
 newpage Admin Views All Reservations (GET)
 client -> server ++: req.get('/api/v1/reservations')
 server -> router ++: app.use('/api/v1/reservations', reservations)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
 router -> controller ++: getMyReservations()
 note over client
     Precondition: requester is an admin.
@@ -240,15 +282,22 @@ db --> model --: all reservations (may be empty)
 model --> controller --: all reservations (may be empty)
 controller -> controller: Prepare all reservation list (200)
 controller --> client --: response (success or error)
+end
 deactivate router
 deactivate server
 
 newpage Admin Edits Any Reservation (PUT)
 client -> server ++: req.put('/api/v1/reservations/{id}')
 server -> router ++: app.use('/api/v1/reservations', reservations)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
 router -> controller ++: updateReservation()
 note over client
     Precondition: requester is an admin.
@@ -274,15 +323,22 @@ else Invalid ID, missing reservation, denied access, or invalid update
     controller -> controller: Prepare update error and reason
 end
 controller --> client --: response (success or error)
+end
 deactivate router
 deactivate server
 
 newpage Admin Deletes Any Reservation (DELETE)
 client -> server ++: req.delete('/api/v1/reservations/{id}')
 server -> router ++: app.use('/api/v1/reservations', reservations)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
 router -> controller ++: deleteReservation()
 note over client
     Precondition: requester is an admin.
@@ -301,6 +357,7 @@ else Invalid ID, missing reservation, or denied access
     controller -> controller: Prepare deletion error and reason
 end
 controller --> client --: response (success or error)
+end
 deactivate router
 deactivate server
 
@@ -369,13 +426,25 @@ deactivate server
 newpage Admin Creates Shop (POST)
 client -> server ++: req.post('/api/v1/shops')
 server -> router ++: app.use('/api/v1/shops', shops)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
+router -> auth ++: authorize('admin')(req, res, next)
+auth -> auth: Check req.user.role
+alt Role is admin
+    auth --> router: next()
+else Role is not admin
+    auth --> client: 403 Forbidden
+end
+deactivate auth
+opt Admin role is authorized
 router -> controller ++: createShop()
-ref over router
-    authorize('admin') grants access to admins only.
-end ref
 controller -> controller: Validate shop details and operating-time format
 opt Input is valid
 controller -> model ++: Massage.create(shopDetails)
@@ -384,19 +453,33 @@ db --> model --: shop or validation error
 model --> controller --: shop or validation error
 end
 controller --> client --: response (success or error)
+end
+end
 deactivate router
 deactivate server
 
 newpage Admin Edits Shop (PUT)
 client -> server ++: req.put('/api/v1/shops/{id}')
 server -> router ++: app.use('/api/v1/shops', shops)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
+router -> auth ++: authorize('admin')(req, res, next)
+auth -> auth: Check req.user.role
+alt Role is admin
+    auth --> router: next()
+else Role is not admin
+    auth --> client: 403 Forbidden
+end
+deactivate auth
+opt Admin role is authorized
 router -> controller ++: updateShop()
-ref over router
-    authorize('admin') grants access to admins only.
-end ref
 controller -> controller: Validate allowed fields and operating-time format
 opt Changes are valid
 controller -> model ++: Massage.findByIdAndUpdate(req.params.id, {$set: updates}, options)
@@ -405,15 +488,23 @@ db --> model --: shop, not found, or validation error
 model --> controller --: shop, not found, or validation error
 end
 controller --> client --: response (success or error)
+end
+end
 deactivate router
 deactivate server
 
 newpage Change Reservation Status (PATCH)
 client -> server ++: req.patch('/api/v1/reservations/{id}/status')
 server -> router ++: app.use('/api/v1/reservations', reservations)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
 router -> controller ++: updateReservationStatus()
 controller -> model ++: Reservation.findById(req.params.id)
 model -> db ++: Find reservation
@@ -432,15 +523,22 @@ note over controller
     Manual status changes support testing; no time-based validation.
 end note
 controller --> client --: response (success or error)
+end
 deactivate router
 deactivate server
 
 newpage Submit Rating (POST)
 client -> server ++: req.post('/api/v1/reservations/{id}/rating')
 server -> router ++: app.use('/api/v1/reservations', reservations)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
 router -> controller ++: createRating()
 controller -> controller: Validate rating (integer 1-5) and optional comment
 controller -> model ++: Reservation.findById(req.params.id)
@@ -456,15 +554,22 @@ else Invalid rating, missing reservation, not owner, or not completed
     controller -> controller: Prepare rating rejection and reason
 end
 controller --> client --: response (success or error)
+end
 deactivate router
 deactivate server
 
 newpage View Ratings (GET)
 client -> server ++: req.get('/api/v1/ratings')
 server -> router ++: app.use('/api/v1/ratings', ratings)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
 router -> controller ++: getRatings()
 note over client
     Registered users and admins may view ratings.
@@ -474,19 +579,32 @@ model -> db ++: Find all ratings or filter by shopId
 db --> model --: ratings (may be empty)
 model --> controller --: ratings (may be empty)
 controller --> client --: response (success or error)
+end
 deactivate router
 deactivate server
 
 newpage Admin Creates Closing Date (POST)
 client -> server ++: req.post('/api/v1/shops/{shopId}/closing-dates')
 server -> router ++: app.use('/api/v1/shops', shops)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
+router -> auth ++: authorize('admin')(req, res, next)
+auth -> auth: Check req.user.role
+alt Role is admin
+    auth --> router: next()
+else Role is not admin
+    auth --> client: 403 Forbidden
+end
+deactivate auth
+opt Admin role is authorized
 router -> controller ++: createClosingDate()
-ref over router
-    authorize('admin') grants access to admins only.
-end ref
 controller -> controller: Validate date and reason
 controller -> model ++: Massage.findById(req.params.shopId)
 model -> db ++: Find shop
@@ -501,19 +619,33 @@ else Invalid input or missing shop
     controller -> controller: Prepare closing-date error
 end
 controller --> client --: response (success or error)
+end
+end
 deactivate router
 deactivate server
 
 newpage Admin Views Closing Dates (GET)
 client -> server ++: req.get('/api/v1/shops/{shopId}/closing-dates')
 server -> router ++: app.use('/api/v1/shops', shops)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
+router -> auth ++: authorize('admin')(req, res, next)
+auth -> auth: Check req.user.role
+alt Role is admin
+    auth --> router: next()
+else Role is not admin
+    auth --> client: 403 Forbidden
+end
+deactivate auth
+opt Admin role is authorized
 router -> controller ++: getClosingDates()
-ref over router
-    authorize('admin') grants access to admins only.
-end ref
 controller -> model ++: Massage.findById(req.params.shopId)
 model -> db ++: Find shop
 db --> model --: shop or null
@@ -527,19 +659,33 @@ else Shop missing
     controller -> controller: Prepare shop-not-found error
 end
 controller --> client --: response (success or error)
+end
+end
 deactivate router
 deactivate server
 
 newpage Admin Edits Closing Date (PUT)
 client -> server ++: req.put('/api/v1/closing-dates/{id}')
 server -> router ++: app.use('/api/v1/closing-dates', closingDates)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
+router -> auth ++: authorize('admin')(req, res, next)
+auth -> auth: Check req.user.role
+alt Role is admin
+    auth --> router: next()
+else Role is not admin
+    auth --> client: 403 Forbidden
+end
+deactivate auth
+opt Admin role is authorized
 router -> controller ++: updateClosingDate()
-ref over router
-    authorize('admin') grants access to admins only.
-end ref
 controller -> controller: Validate updated date or reason
 opt Changes are valid
 controller -> model ++: SpecialClosingDate.findByIdAndUpdate(id, {$set: updates}, options)
@@ -548,24 +694,40 @@ db --> model --: closing date, not found, or duplicate-date error
 model --> controller --: closing date, not found, or duplicate-date error
 end
 controller --> client --: response (success or error)
+end
+end
 deactivate router
 deactivate server
 
 newpage Admin Deletes Closing Date (DELETE)
 client -> server ++: req.delete('/api/v1/closing-dates/{id}')
 server -> router ++: app.use('/api/v1/closing-dates', closingDates)
-ref over client, router
-    Precondition: valid Bearer token; protect() has authenticated req.user.
-end ref
+router -> auth ++: protect(req, res, next)
+auth -> auth: Authenticate Bearer token and load req.user
+alt Authentication succeeds
+    auth --> router: next()
+else Missing, invalid, expired, or revoked token
+    auth --> client: 401 Unauthorized
+end
+deactivate auth
+opt Authentication succeeds
+router -> auth ++: authorize('admin')(req, res, next)
+auth -> auth: Check req.user.role
+alt Role is admin
+    auth --> router: next()
+else Role is not admin
+    auth --> client: 403 Forbidden
+end
+deactivate auth
+opt Admin role is authorized
 router -> controller ++: deleteClosingDate()
-ref over router
-    authorize('admin') grants access to admins only.
-end ref
 controller -> model ++: SpecialClosingDate.findByIdAndDelete(req.params.id)
 model -> db ++: Delete closing date
 db --> model --: deleted closing date or not found
 model --> controller --: deleted closing date or not found
 controller --> client --: response (success or error)
+end
+end
 deactivate router
 deactivate server
 
